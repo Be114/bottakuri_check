@@ -1,0 +1,7 @@
+{
+  "name": "Google Map ぼったくりチェッカー",
+  "description": "AIを使ってGoogleマップのクチコミを分析し、評価の乖離や怪しい投稿を検出して「ぼったくり」や「地雷店」のリスクを判定します。",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

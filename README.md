@@ -1,11 +1,27 @@
-<div align="center">
+# Google Map ぼったくりチェッカー
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+Googleマップのクチコミの信頼性をAIで分析し、ぼったくり店や地雷店のリスクを判定するWebアプリケーションです。
 
-  <h1>Built with AI Studio</h2>
+## 機能
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+- **多角的分析**: Googleマップの情報だけでなく、Google検索を通じて食べログやRettyなどの他サイトの評価と比較し、不自然な乖離を検出します。
+- **AI詳細判定**: Google Gemini AIを使用し、レビュー内容を詳細に分析。「サクラ」特有の文体や「ぼったくり」報告を検出します。
+- **危険度スコア**: 0%〜100%のスコアでリスクを表示。ひと目で安全性を確認できます。
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## 技術スタック
 
-</div>
+- React 19
+- TypeScript
+- Tailwind CSS
+- Google GenAI SDK (Gemini 2.5 Flash / Gemini 3 Pro)
+- Google Search Grounding
+- Google Maps Grounding
+
+## 使い方
+
+1. 検索バーに調べたいお店の名前や場所を入力します（例: 「新宿 居酒屋 〇〇」）。
+2. AIが情報を収集・分析し、数秒でレポートを表示します。
+3. 危険度スコアや詳細レポートを確認し、お店選びの参考にしてください。
+
+---
+※このツールはAIによる推測に基づいています。結果は参考程度にとどめ、最終的な判断はご自身で行ってください。
