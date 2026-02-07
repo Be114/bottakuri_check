@@ -15,7 +15,9 @@ function loadAdSenseScript(clientId: string): Promise<void> {
   if (scriptPromise) return scriptPromise;
 
   scriptPromise = new Promise((resolve, reject) => {
-    const existingScript = document.querySelector<HTMLScriptElement>('script[data-adsense-loader="true"]');
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      'script[src*="pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]'
+    );
     if (existingScript) {
       resolve();
       return;
