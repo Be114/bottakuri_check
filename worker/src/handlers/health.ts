@@ -5,7 +5,7 @@ import { buildJsonResponse } from '../utils/response';
 import { formatDayInTimeZone, resolveDayRolloverTimezone } from '../utils/time';
 import { resolveReviewSampleLimit, toPositiveInt } from '../utils/validation';
 
-export async function handleHealth(env: Env, allowedOrigin: string | null): Promise<Response> {
+export async function handleHealth(env: Env, allowedOrigin: string | null, requestId?: string): Promise<Response> {
   const dayRolloverTimezone = resolveDayRolloverTimezone(env.DAY_ROLLOVER_TIMEZONE);
   const day = formatDayInTimeZone(new Date(), dayRolloverTimezone);
   const metrics = await readMetrics(env, day);
@@ -29,6 +29,7 @@ export async function handleHealth(env: Env, allowedOrigin: string | null): Prom
       },
     },
     200,
-    allowedOrigin
+    allowedOrigin,
+    requestId
   );
 }

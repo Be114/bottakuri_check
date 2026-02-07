@@ -1,5 +1,6 @@
 import { handleAnalyze } from './handlers/analyze';
 import { handleHealth } from './handlers/health';
+import { incrementMetric, metricKey } from './services/kvStore';
 import { Env } from './types';
 import {
   ApiHttpError,
@@ -8,44 +9,208 @@ import {
   buildPreflightResponse,
   resolveAllowedOrigin,
 } from './utils/response';
+import { formatDayInTimeZone, resolveDayRolloverTimezone } from './utils/time';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const requestId = crypto.randomUUID();
+    const startedAt = Date.now();
     const url = new URL(request.url);
     const origin = request.headers.get('Origin');
     const allowedOrigin = resolveAllowedOrigin(origin, env.ALLOWED_ORIGINS);
+    const path = url.pathname;
+    const method = request.method;
 
-    if (url.pathname === '/api/health') {
-      if (request.method !== 'GET') {
-        return buildErrorResponse('UPSTREAM_ERROR', 405, 'Method Not Allowed', allowedOrigin);
+    if (path === '/api/health') {
+      if (method !== 'GET') {
+        return await finalizeErrorResponse({
+          env,
+          requestId,
+          path,
+          method,
+          origin,
+          allowedOrigin,
+          startedAt,
+          code: 'UPSTREAM_ERROR',
+          status: 405,
+          message: 'Method Not Allowed',
+        });
       }
-      return handleHealth(env, allowedOrigin);
+
+      const response = await handleHealth(env, allowedOrigin, requestId);
+      logResponse({
+        requestId,
+        path,
+        method,
+        status: response.status,
+        latencyMs: Date.now() - startedAt,
+      });
+      return response;
     }
 
-    if (url.pathname !== '/api/analyze') {
-      return buildErrorResponse('UPSTREAM_ERROR', 404, 'Not Found', allowedOrigin);
+    if (path !== '/api/analyze') {
+      return await finalizeErrorResponse({
+        env,
+        requestId,
+        path,
+        method,
+        origin,
+        allowedOrigin,
+        startedAt,
+        code: 'UPSTREAM_ERROR',
+        status: 404,
+        message: 'Not Found',
+      });
     }
 
-    if (request.method === 'OPTIONS') {
-      return buildPreflightResponse(allowedOrigin);
+    if (method === 'OPTIONS') {
+      const response = buildPreflightResponse(allowedOrigin);
+      logResponse({
+        requestId,
+        path,
+        method,
+        status: response.status,
+        latencyMs: Date.now() - startedAt,
+      });
+      return response;
     }
 
-    if (request.method !== 'POST') {
-      return buildErrorResponse('UPSTREAM_ERROR', 405, 'Method Not Allowed', allowedOrigin);
+    if (method !== 'POST') {
+      return await finalizeErrorResponse({
+        env,
+        requestId,
+        path,
+        method,
+        origin,
+        allowedOrigin,
+        startedAt,
+        code: 'UPSTREAM_ERROR',
+        status: 405,
+        message: 'Method Not Allowed',
+      });
     }
 
     if (!allowedOrigin) {
-      return buildErrorResponse('UPSTREAM_ERROR', 403, '許可されていないOriginです。', null);
+      return await finalizeErrorResponse({
+        env,
+        requestId,
+        path,
+        method,
+        origin,
+        allowedOrigin: null,
+        startedAt,
+        code: 'UPSTREAM_ERROR',
+        status: 403,
+        message: '許可されていないOriginです。',
+      });
     }
 
     try {
       const result = await handleAnalyze(request, env);
-      return buildJsonResponse(result, 200, allowedOrigin);
+      const response = buildJsonResponse(result, 200, allowedOrigin, requestId);
+      logResponse({
+        requestId,
+        path,
+        method,
+        status: response.status,
+        latencyMs: Date.now() - startedAt,
+      });
+      return response;
     } catch (error) {
       if (error instanceof ApiHttpError) {
-        return buildErrorResponse(error.code, error.status, error.message, allowedOrigin);
+        return await finalizeErrorResponse({
+          env,
+          requestId,
+          path,
+          method,
+          origin,
+          allowedOrigin,
+          startedAt,
+          code: error.code,
+          status: error.status,
+          message: error.message,
+        });
       }
-      return buildErrorResponse('UPSTREAM_ERROR', 500, '予期せぬエラーが発生しました。', allowedOrigin);
+      return await finalizeErrorResponse({
+        env,
+        requestId,
+        path,
+        method,
+        origin,
+        allowedOrigin,
+        startedAt,
+        code: 'UPSTREAM_ERROR',
+        status: 500,
+        message: '予期せぬエラーが発生しました。',
+      });
     }
   },
 };
+
+async function finalizeErrorResponse(params: {
+  env: Env;
+  requestId: string;
+  path: string;
+  method: string;
+  origin: string | null;
+  allowedOrigin: string | null;
+  startedAt: number;
+  code: 'INVALID_QUERY' | 'RATE_LIMIT' | 'BUDGET_EXCEEDED' | 'MODEL_UNAVAILABLE' | 'UPSTREAM_ERROR';
+  status: number;
+  message: string;
+}): Promise<Response> {
+  await recordErrorMetric(params.env).catch(() => {
+    // Metric failures should not affect API responses.
+  });
+
+  const response = buildErrorResponse(
+    params.code,
+    params.status,
+    params.message,
+    params.allowedOrigin,
+    params.requestId
+  );
+
+  logResponse({
+    requestId: params.requestId,
+    path: params.path,
+    method: params.method,
+    status: params.status,
+    errorCode: params.code,
+    latencyMs: Date.now() - params.startedAt,
+    origin: params.origin,
+    allowedOrigin: params.allowedOrigin,
+  });
+
+  return response;
+}
+
+async function recordErrorMetric(env: Env): Promise<void> {
+  const day = formatDayInTimeZone(new Date(), resolveDayRolloverTimezone(env.DAY_ROLLOVER_TIMEZONE));
+  await incrementMetric(env, metricKey('error_count', day));
+}
+
+function logResponse(params: {
+  requestId: string;
+  path: string;
+  method: string;
+  status: number;
+  latencyMs: number;
+  errorCode?: string;
+  origin?: string | null;
+  allowedOrigin?: string | null;
+}): void {
+  const payload = {
+    level: params.status >= 500 ? 'error' : params.status >= 400 ? 'warn' : 'info',
+    requestId: params.requestId,
+    path: params.path,
+    method: params.method,
+    status: params.status,
+    errorCode: params.errorCode || null,
+    latencyMs: params.latencyMs,
+    origin: params.origin ?? null,
+    allowedOrigin: params.allowedOrigin ?? null,
+    timestamp: new Date().toISOString(),
+  };
+  console.log(JSON.stringify(payload));
+}

@@ -13,12 +13,18 @@ describe('worker API routes', () => {
     });
 
     const response = await worker.fetch(request, env);
-    const payload = (await response.json()) as { status: string; model: string; metrics: { cacheHitRate: number } };
+    const payload = (await response.json()) as {
+      status: string;
+      model: string;
+      metrics: { cacheHitRate: number; errorCount: number };
+    };
 
     expect(response.status).toBe(200);
     expect(payload.status).toBe('ok');
     expect(payload.model).toBe('google/gemini-3-flash-preview');
     expect(payload.metrics.cacheHitRate).toBeTypeOf('number');
+    expect(payload.metrics.errorCount).toBe(0);
+    expect(response.headers.get('x-request-id')).toBeTypeOf('string');
   });
 
   it('POST /api/analyze returns INVALID_QUERY for too-short query', async () => {
@@ -33,10 +39,12 @@ describe('worker API routes', () => {
     });
 
     const response = await worker.fetch(request, env);
-    const payload = (await response.json()) as { error: { code: string } };
+    const payload = (await response.json()) as { error: { code: string; requestId?: string } };
 
     expect(response.status).toBe(400);
     expect(payload.error.code).toBe('INVALID_QUERY');
+    expect(payload.error.requestId).toBeTypeOf('string');
+    expect(response.headers.get('x-request-id')).toBeTypeOf('string');
   });
 
   it('POST /api/analyze returns RATE_LIMIT when per-minute limit is exceeded', async () => {
@@ -51,10 +59,11 @@ describe('worker API routes', () => {
     });
 
     const response = await worker.fetch(request, env);
-    const payload = (await response.json()) as { error: { code: string } };
+    const payload = (await response.json()) as { error: { code: string; requestId?: string } };
 
     expect(response.status).toBe(429);
     expect(payload.error.code).toBe('RATE_LIMIT');
+    expect(payload.error.requestId).toBeTypeOf('string');
   });
 
   it('POST /api/analyze returns BUDGET_EXCEEDED when daily budget slots are exhausted', async () => {
@@ -76,9 +85,10 @@ describe('worker API routes', () => {
     });
 
     const response = await worker.fetch(request, env);
-    const payload = (await response.json()) as { error: { code: string } };
+    const payload = (await response.json()) as { error: { code: string; requestId?: string } };
 
     expect(response.status).toBe(429);
     expect(payload.error.code).toBe('BUDGET_EXCEEDED');
+    expect(payload.error.requestId).toBeTypeOf('string');
   });
 });

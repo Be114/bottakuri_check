@@ -21,11 +21,28 @@ export function buildPreflightResponse(allowedOrigin: string | null): Response {
   });
 }
 
-export function buildErrorResponse(code: ErrorCode, status: number, message: string, allowedOrigin: string | null): Response {
-  return buildJsonResponse({ error: { code, message } }, status, allowedOrigin);
+export function buildErrorResponse(
+  code: ErrorCode,
+  status: number,
+  message: string,
+  allowedOrigin: string | null,
+  requestId?: string
+): Response {
+  return buildJsonResponse(
+    {
+      error: {
+        code,
+        message,
+        ...(requestId ? { requestId } : {}),
+      },
+    },
+    status,
+    allowedOrigin,
+    requestId
+  );
 }
 
-export function buildJsonResponse(body: unknown, status: number, allowedOrigin: string | null): Response {
+export function buildJsonResponse(body: unknown, status: number, allowedOrigin: string | null, requestId?: string): Response {
   const headers = new Headers({
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
@@ -36,6 +53,10 @@ export function buildJsonResponse(body: unknown, status: number, allowedOrigin: 
     corsHeaders.forEach((value, key) => {
       headers.set(key, value);
     });
+  }
+
+  if (requestId) {
+    headers.set('X-Request-Id', requestId);
   }
 
   return new Response(JSON.stringify(body), { status, headers });

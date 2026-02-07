@@ -5,6 +5,8 @@ export const DEFAULT_DAY_ROLLOVER_TIMEZONE = 'Asia/Tokyo';
 export const DEFAULT_REVIEW_SAMPLE_LIMIT = 8;
 export const MIN_REVIEW_SAMPLE_LIMIT = 3;
 export const MAX_REVIEW_SAMPLE_LIMIT = 12;
+export const PLACES_API_TIMEOUT_MS = 10000;
+export const OPENROUTER_API_TIMEOUT_MS = 20000;
 
 export const ANALYSIS_SCHEMA = {
   type: 'object',

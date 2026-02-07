@@ -1,4 +1,4 @@
-import { ANALYSIS_SCHEMA, SYSTEM_PROMPT } from '../constants';
+import { ANALYSIS_SCHEMA, OPENROUTER_API_TIMEOUT_MS, SYSTEM_PROMPT } from '../constants';
 import {
   GroundingUrl,
   OpenRouterAnnotation,
@@ -55,39 +55,43 @@ ${reviewLines}
 - 銀座 久兵衛 本店: Google 4.4 / 食べログ 3.71
 `.trim();
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-      'HTTP-Referer': env.OPENROUTER_SITE_URL || 'http://localhost:3000',
-      'X-Title': env.OPENROUTER_APP_NAME || 'Googleぼったくりチェッカー',
-    },
-    body: JSON.stringify({
-      model: modelId,
-      temperature: 0.2,
-      max_tokens: maxTokens,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: {
-        type: 'json_schema',
-        json_schema: {
-          name: 'analysis_report',
-          strict: true,
-          schema: ANALYSIS_SCHEMA,
-        },
+  const response = await fetchWithTimeout(
+    'https://openrouter.ai/api/v1/chat/completions',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+        'HTTP-Referer': env.OPENROUTER_SITE_URL || 'http://localhost:3000',
+        'X-Title': env.OPENROUTER_APP_NAME || 'Googleぼったくりチェッカー',
       },
-      plugins: [
-        {
-          id: 'web',
-          engine: 'exa',
-          max_results: 2,
+      body: JSON.stringify({
+        model: modelId,
+        temperature: 0.2,
+        max_tokens: maxTokens,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'analysis_report',
+            strict: true,
+            schema: ANALYSIS_SCHEMA,
+          },
         },
-      ],
-    }),
-  });
+        plugins: [
+          {
+            id: 'web',
+            engine: 'exa',
+            max_results: 2,
+          },
+        ],
+      }),
+    },
+    OPENROUTER_API_TIMEOUT_MS
+  );
 
   if (!response.ok) {
     throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルが利用できません。');
@@ -169,4 +173,25 @@ export function hasDomainCitation(citations: GroundingUrl[], domain: string): bo
       return false;
     }
   });
+}
+
+async function fetchWithTimeout(input: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if ((error as Error).name === 'AbortError') {
+      throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルの応答がタイムアウトしました。');
+    }
+    throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルが利用できません。');
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
