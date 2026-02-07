@@ -3,6 +3,12 @@
 Googleマップの店舗情報をもとに、レビューの信頼性とぼったくりリスクを推定するWebアプリです。  
 UIはシンプルなまま維持し、分析処理は Cloudflare Workers 経由で実行します。
 
+## ドキュメント
+
+- API仕様: `/Users/bentaku/bottakuri_check/docs/openapi.yaml`
+- 開発参加ガイド: `/Users/bentaku/bottakuri_check/CONTRIBUTING.md`
+- 変更履歴: `/Users/bentaku/bottakuri_check/CHANGELOG.md`
+
 ## 変更後アーキテクチャ
 
 - フロント: React + TypeScript + Vite
