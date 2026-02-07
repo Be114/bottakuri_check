@@ -11,6 +11,28 @@ export interface ReviewSource {
   url?: string;
 }
 
+export type BudgetState = 'ok' | 'capped';
+
+export interface AnalysisMeta {
+  cached: boolean;
+  model: string;
+  generatedAt: string;
+  budgetState: BudgetState;
+}
+
+export type ApiErrorCode =
+  | 'INVALID_QUERY'
+  | 'RATE_LIMIT'
+  | 'BUDGET_EXCEEDED'
+  | 'MODEL_UNAVAILABLE'
+  | 'UPSTREAM_ERROR';
+
+export interface ApiError {
+  code: ApiErrorCode;
+  message: string;
+  status?: number;
+}
+
 export interface AnalysisReport {
   placeName: string;
   address: string;
@@ -27,6 +49,7 @@ export interface AnalysisReport {
     percentage: number;
   }[];
   groundingUrls: { title: string; uri: string }[];
+  meta: AnalysisMeta;
 }
 
 export interface SearchState {
@@ -34,4 +57,5 @@ export interface SearchState {
   step: 'idle' | 'searching' | 'analyzing' | 'complete' | 'error';
   message: string;
   data?: AnalysisReport;
+  errorCode?: ApiErrorCode;
 }

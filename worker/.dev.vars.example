@@ -1,0 +1,6 @@
+OPENROUTER_API_KEY=your_openrouter_api_key
+GOOGLE_PLACES_API_KEY=your_google_places_api_key
+OPENROUTER_SITE_URL=http://localhost:3000
+OPENROUTER_APP_NAME=Googleぼったくりチェッカー
+REVIEW_SAMPLE_LIMIT=8
+DAY_ROLLOVER_TIMEZONE=Asia/Tokyo

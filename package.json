@@ -1,19 +1,20 @@
 {
-  "name": "google-map-ぼったくりチェッカー",
+  "name": "google-bottakuri-checker",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:api": "npm --prefix worker run dev",
     "build": "vite build",
+    "build:api": "npm --prefix worker run build",
     "preview": "vite preview"
   },
   "dependencies": {
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "recharts": "^3.4.1",
     "lucide-react": "^0.554.0",
-    "@google/genai": "^1.30.0"
+    "recharts": "^3.4.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

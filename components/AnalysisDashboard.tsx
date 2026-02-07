@@ -2,6 +2,7 @@ import React from 'react';
 import { AnalysisReport } from '../types';
 import ScoreGauge from './ScoreGauge';
 import ReviewChart from './ReviewChart';
+import AdBanner from './AdBanner';
 import { AlertTriangle, CheckCircle, ExternalLink, MapPin, Store, TrendingDown, Search } from 'lucide-react';
 
 interface AnalysisDashboardProps {
@@ -10,8 +11,9 @@ interface AnalysisDashboardProps {
 }
 
 const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ data, onReset }) => {
-  const diff = data.googleRating - (data.tabelogRating || data.estimatedRealRating);
+  const diff = data.googleRating - data.estimatedRealRating;
   const isSuspiciousDiff = diff > 0.8;
+  const generatedAtText = new Date(data.meta.generatedAt).toLocaleString('ja-JP');
 
   return (
     <div className="max-w-5xl mx-auto p-4 pb-20 space-y-6 animate-fade-in">
@@ -60,13 +62,15 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ data, onReset }) 
             <div className="z-10">
               <div className="flex items-center gap-2 text-gray-500 mb-2">
                 <Store size={18} className="text-orange-500" />
-                <span className="font-bold text-sm">実力値（推定/他サイト）</span>
+                <span className="font-bold text-sm">実力値（補正後）</span>
               </div>
               <div className={`text-4xl font-bold ${isSuspiciousDiff ? 'text-red-500' : 'text-gray-800'}`}>
-                {(data.tabelogRating || data.estimatedRealRating).toFixed(1)}
+                {data.estimatedRealRating.toFixed(1)}
               </div>
               {data.tabelogRating ? (
-                 <div className="text-xs text-orange-500 font-medium mt-1">食べログ/他サイト参照</div>
+                 <div className="text-xs text-orange-500 font-medium mt-1">
+                   食べログ生値: {data.tabelogRating.toFixed(2)}（補正済み）
+                 </div>
               ) : (
                  <div className="text-xs text-gray-400 mt-1">AIによる補正値</div>
               )}
@@ -84,7 +88,7 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ data, onReset }) 
              <AlertTriangle className="text-orange-500 shrink-0 mt-0.5" size={18} />
              <p className="text-sm text-orange-800 leading-relaxed">
                {isSuspiciousDiff 
-                 ? `Googleの評価(${data.googleRating})と実力値(${(data.tabelogRating || data.estimatedRealRating).toFixed(1)})に大きな乖離があります。評価のかさ増しが行われている可能性があります。`
+                 ? `Googleの評価(${data.googleRating})と補正後実力値(${data.estimatedRealRating.toFixed(1)})に大きな乖離があります。評価のかさ増しが行われている可能性があります。`
                  : `Googleの評価と実力値に大きな矛盾は見られません。比較的信頼できる評価分布です。`}
              </p>
           </div>
@@ -181,6 +185,18 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ data, onReset }) 
           )}
         </div>
       </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-xs text-gray-600">
+        <span>モデル: {data.meta.model}</span>
+        <span className="text-gray-300">|</span>
+        <span>生成時刻: {generatedAtText}</span>
+        <span className="text-gray-300">|</span>
+        <span className={data.meta.cached ? 'text-blue-600 font-medium' : 'text-gray-600'}>
+          {data.meta.cached ? 'キャッシュ結果' : '新規分析'}
+        </span>
+      </div>
+
+      <AdBanner />
     </div>
   );
 };

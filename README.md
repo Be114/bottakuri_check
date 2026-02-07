@@ -1,146 +1,174 @@
-# Google Map ぼったくりチェッカー
+# Googleぼったくりチェッカー
 
-Googleマップのクチコミの信頼性をAIで分析し、ぼったくり店や地雷店のリスクを判定するWebアプリケーションです。
+Googleマップの店舗情報をもとに、レビューの信頼性とぼったくりリスクを推定するWebアプリです。  
+UIはシンプルなまま維持し、分析処理は Cloudflare Workers 経由で実行します。
+
+## 変更後アーキテクチャ
+
+- フロント: React + TypeScript + Vite
+- APIゲートウェイ: Cloudflare Workers
+- 店舗情報: Google Places API (Text Search / Place Details)
+- AI分析: OpenRouter (`google/gemini-3-flash-preview`)
+- キャッシュ/制限: Cloudflare KV (24時間キャッシュ、レート制限、日次予算制御)
+- 広告: Google AdSense（非連動バナー1枠）
 
 ## 機能
 
-- **多角的分析**: Googleマップの情報だけでなく、Google検索を通じて食べログやRettyなどの他サイトの評価と比較し、不自然な乖離を検出します。
-- **AI詳細判定**: Google Gemini AIを使用し、レビュー内容を詳細に分析。「サクラ」特有の文体や「ぼったくり」報告を検出します。
-- **危険度スコア**: 0%〜100%のスコアでリスクを表示。ひと目で安全性を確認できます。
-- **位置情報連携**: ブラウザの位置情報を使用して、現在地周辺の店舗検索精度を向上させます。
+- Google評価と外部評判の乖離をAIで分析
+- ぼったくり危険度スコア（0〜100）を表示
+- 判定詳細、評価分布、検出キーワードを表示
+- 参照ソースURLを表示
+- 24時間キャッシュで同一検索コストを抑制
 
-## 技術スタック
+## セキュリティ/コスト制御
 
-- **フロントエンド**: React 19 + TypeScript
-- **スタイリング**: Tailwind CSS
-- **チャート**: Recharts
-- **アイコン**: Lucide React
-- **AI**: Google GenAI SDK
-  - Gemini 2.5 Flash（情報収集・グラウンディング）
-  - Gemini 3 Pro Preview（詳細分析・思考モード）
-- **グラウンディング**: Google Search / Google Maps
-- **ビルドツール**: Vite
+- APIキーはすべて Worker secrets に保存（フロントへ露出しない）
+- CORSのOrigin許可リスト
+- 入力クエリ検証（2〜80文字）
+- IPハッシュベースのレート制限
+- 日次予算上限による新規分析停止
 
-## 必要条件
+## ディレクトリ構成
 
-- Node.js 18.x 以上
-- npm または yarn
-- **Google AI Studio API キー**（Gemini API）
+```text
+bottakuri_check/
+├── components/
+├── services/
+│   └── apiService.ts
+├── worker/
+│   ├── src/index.ts
+│   ├── wrangler.toml
+│   ├── .dev.vars.example
+│   └── README.md
+├── App.tsx
+├── types.ts
+└── vite.config.ts
+```
 
 ## セットアップ
 
-### 1. リポジトリのクローン
-
-```bash
-git clone <repository-url>
-cd google-map-ぼったくりチェッカー
-```
-
-### 2. 依存関係のインストール
+### 1. フロントエンド
 
 ```bash
 npm install
 ```
 
-### 3. 環境変数の設定
-
-プロジェクトルートに `.env.local` ファイルを作成し、Google AI Studio で取得したAPIキーを設定します。
+必要に応じて `.env.local` を作成します。
 
 ```bash
-# .env.local
-GEMINI_API_KEY=your_gemini_api_key_here
+VITE_API_BASE_URL=/api
+VITE_API_PROXY_TARGET=http://127.0.0.1:8787
+VITE_ADSENSE_CLIENT_ID=ca-pub-xxxxxxxxxxxxxxxx
+VITE_ADSENSE_SLOT_ID=1234567890
 ```
 
-> **APIキーの取得方法**:
-> 1. [Google AI Studio](https://aistudio.google.com/) にアクセス
-> 2. 「Get API key」からAPIキーを生成
-> 3. 生成されたキーを `.env.local` に設定
+本番で Worker を別ドメイン運用する場合は、`VITE_API_BASE_URL` を Worker のURLに設定します。
 
-### 4. 開発サーバーの起動
+```bash
+VITE_API_BASE_URL=https://bottakuri-check-api.steep-wood-db4a.workers.dev/api
+```
+
+### 2. Worker API
+
+```bash
+cd worker
+npm install
+```
+
+KV namespace を作成して `worker/wrangler.toml` に反映します。
+
+```bash
+npx wrangler kv:namespace create APP_KV
+npx wrangler kv:namespace create APP_KV --preview
+```
+
+シークレットを設定します。
+
+```bash
+npx wrangler secret put OPENROUTER_API_KEY
+npx wrangler secret put GOOGLE_PLACES_API_KEY
+```
+
+`worker/.dev.vars.example` を参考に `worker/.dev.vars` を作成するとローカル実行時に使えます。
+
+## 起動方法（ローカル）
+
+ターミナル1:
+
+```bash
+npm run dev:api
+```
+
+ターミナル2:
 
 ```bash
 npm run dev
 ```
 
-ブラウザで http://localhost:3000 を開くとアプリケーションが表示されます。
+フロント: `http://localhost:3000`  
+Worker: `http://127.0.0.1:8787`
 
-## 使い方
+## 本番デプロイ手順（Cloudflare）
 
-1. **店舗を検索**: 検索バーに調べたいお店の名前や場所を入力します（例: 「新宿 居酒屋 〇〇」「渋谷 ラーメン」）。
+### 1) Worker APIをデプロイ
 
-2. **位置情報の許可（任意）**: ブラウザから位置情報の許可を求められた場合、許可すると現在地周辺の検索精度が向上します。
-
-3. **AI分析を待つ**: AIが以下の処理を実行します：
-   - Google Maps からお店の情報・レビューを収集
-   - Google Search で食べログ・Rettyなど他サイトの評価を検索
-   - 収集した情報をもとに危険度を分析
-
-4. **結果を確認**: 分析完了後、以下の情報が表示されます：
-   - **ぼったくり危険度スコア** (0%〜100%)
-   - **Google評価 vs 実力値（推定）の比較**
-   - **判定詳細レポート**（各リスク項目の解説）
-   - **評価分布グラフ**
-   - **検出された怪しいキーワード**
-   - **AI総評**
-   - **参照ソースのリンク**
-
-5. **別の店舗を検索**: 「別の場所を検索」ボタンで新しい検索ができます。
-
-## 判定基準
-
-AIは以下の基準でぼったくり危険度を判定します：
-
-| 基準 | 説明 |
-|------|------|
-| **評価の乖離** | Google評価が4.0以上で、食べログなどの他サイトが3.2未満の場合はリスク大 |
-| **レビュー分布** | ★5と★1に極端に偏っている（F型分布）は危険 |
-| **キーワード** | 「最高」「親切」「感動」などの抽象的な絶賛ばかり、または「詐欺」「ぼったくり」「キャッチ」などの警告キーワード |
-| **投稿者の特徴** | アカウント名が不自然、投稿数が1件のみのアカウントが多いなど |
-
-### 危険度の目安
-
-- **0%〜39%**: 安全（特に問題は見られない）
-- **40%〜69%**: 注意（いくつか気になる点あり）
-- **70%〜100%**: 危険（ぼったくりの可能性が高い）
-
-## スクリプト一覧
-
-| コマンド | 説明 |
-|----------|------|
-| `npm run dev` | 開発サーバーを起動（ホットリロード対応） |
-| `npm run build` | 本番用にビルド |
-| `npm run preview` | ビルド後のプレビュー |
-
-## ディレクトリ構成
-
+```bash
+cd worker
+npx wrangler deploy
 ```
-google-map-ぼったくりチェッカー/
-├── components/
-│   ├── AnalysisDashboard.tsx  # 分析結果ダッシュボード
-│   ├── ReviewChart.tsx        # 評価分布チャート
-│   └── ScoreGauge.tsx         # 危険度ゲージ
-├── services/
-│   └── geminiService.ts       # Gemini API連携サービス
-├── App.tsx                    # メインアプリコンポーネント
-├── index.tsx                  # エントリーポイント
-├── index.html                 # HTMLテンプレート
-├── types.ts                   # TypeScript型定義
-├── package.json               # 依存関係定義
-├── tsconfig.json              # TypeScript設定
-├── vite.config.ts             # Vite設定
-└── metadata.json              # アプリメタデータ
+
+### 2) フロントをビルドしてPagesへデプロイ
+
+```bash
+cd ..
+npm run build
+npx wrangler pages deploy dist --project-name bottakuri-check
 ```
+
+### 3) 接続確認
+
+```bash
+curl -s https://bottakuri-check-api.steep-wood-db4a.workers.dev/api/health
+curl -I https://bottakuri-check.pages.dev
+```
+
+## API
+
+### `POST /api/analyze`
+
+Request:
+
+```json
+{
+  "query": "新宿 居酒屋 ○○",
+  "location": { "lat": 35.69, "lng": 139.70 }
+}
+```
+
+Error:
+
+```json
+{
+  "error": {
+    "code": "BUDGET_EXCEEDED",
+    "message": "本日の新規分析上限に達しました。"
+  }
+}
+```
+
+### `GET /api/health`
+
+Workerの稼働状態、制限値、当日メトリクスを返します。
+
+## スクリプト
+
+- `npm run dev`: フロント開発サーバー
+- `npm run dev:api`: Workerローカル実行
+- `npm run build`: フロントビルド
+- `npm run build:api`: Workerのdry-runビルド
+- `npm run preview`: フロントプレビュー
 
 ## 注意事項
 
-- このツールはAIによる推測に基づいています。結果は参考程度にとどめ、最終的な判断はご自身で行ってください。
-- Google Gemini APIの利用には制限があります。大量のリクエストを短時間に送信すると、レート制限に達する可能性があります。
-- 位置情報の使用は任意です。許可しなくても基本的な検索は可能です。
-
-## ライセンス
-
-MIT License
-
-## 貢献
-
-Issue や Pull Request は歓迎します。
+- AI判定結果は参考情報です。最終判断は必ず利用者が行ってください。
+- 広告は判定ロジックに影響しません。

@@ -1,0 +1,22 @@
+name = "bottakuri-check-api"
+main = "src/index.ts"
+compatibility_date = "2026-02-06"
+workers_dev = true
+
+[vars]
+ALLOWED_ORIGINS = "http://localhost:3000,https://bottakuri-check.pages.dev"
+DAILY_BUDGET_USD = "5"
+WORST_CASE_COST_USD = "0.25"
+CACHE_TTL_SECONDS = "86400"
+PER_MINUTE_LIMIT = "5"
+PER_DAY_NEW_ANALYSIS_LIMIT = "20"
+OPENROUTER_MAX_TOKENS = "1400"
+REVIEW_SAMPLE_LIMIT = "8"
+DAY_ROLLOVER_TIMEZONE = "Asia/Tokyo"
+OPENROUTER_SITE_URL = "https://bottakuri-check.pages.dev"
+OPENROUTER_APP_NAME = "Googleぼったくりチェッカー"
+
+[[kv_namespaces]]
+binding = "APP_KV"
+id = "dc71d387248a45b99af8ba0a2a491e8b"
+preview_id = "7a316326817e4dd6ad20503172d859f4"

@@ -1,8 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Loader2 } from 'lucide-react';
-import { AnalysisReport, SearchState } from './types';
-import { gatherPlaceData, analyzeReviewData } from './services/geminiService';
+import { ApiError, ApiErrorCode, SearchState } from './types';
+import { analyzePlace } from './services/apiService';
 import AnalysisDashboard from './components/AnalysisDashboard';
+
+const ERROR_MESSAGES: Record<ApiErrorCode, string> = {
+  INVALID_QUERY: '店名や場所は2〜80文字で入力してください。',
+  RATE_LIMIT: 'アクセスが集中しています。少し時間をおいて再度お試しください。',
+  BUDGET_EXCEEDED: '本日の新規分析上限に達しました。明日以降に再度お試しください。',
+  MODEL_UNAVAILABLE: '現在AI分析が混雑しています。時間をおいて再試行してください。',
+  UPSTREAM_ERROR: '外部サービスへの接続に失敗しました。しばらくして再度お試しください。'
+};
+
+function getMessageFromError(error: unknown): { code?: ApiErrorCode; message: string } {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const apiError = error as ApiError;
+    const message = ERROR_MESSAGES[apiError.code] || apiError.message;
+    return { code: apiError.code, message };
+  }
+  return { message: '分析中にエラーが発生しました。もう一度お試しください。' };
+}
 
 function App() {
   const [query, setQuery] = useState('');
@@ -33,34 +50,30 @@ function App() {
     e.preventDefault();
     if (!query.trim()) return;
 
+    const trimmedQuery = query.trim();
+
     setSearchState({
       isLoading: true,
       step: 'searching',
       message: 'お店の情報を収集中...'
     });
 
-    try {
-      // Step 1: Gather Data
-      const { rawText, groundingChunks } = await gatherPlaceData(query, userLocation);
-      
-      setSearchState(prev => ({
-        ...prev,
-        step: 'analyzing',
-        message: 'AIがクチコミを分析しています...'
-      }));
+    const progressTimer = window.setTimeout(() => {
+      setSearchState(prev => {
+        if (!prev.isLoading || prev.step !== 'searching') return prev;
+        return {
+          ...prev,
+          step: 'analyzing',
+          message: 'AIがクチコミを分析しています...'
+        };
+      });
+    }, 900);
 
-      // Step 2: Analyze
-      const analysisResult = await analyzeReviewData(rawText);
-      
-      // Combine data
-      const finalResult: AnalysisReport = {
-        ...analysisResult,
-        groundingUrls: groundingChunks.flatMap(chunk => {
-          if (chunk.web?.uri) return [{ title: chunk.web.title, uri: chunk.web.uri }];
-          if (chunk.maps?.uri) return [{ title: chunk.maps.title || "Google Maps", uri: chunk.maps.uri }];
-          return [];
-        })
-      };
+    try {
+      const finalResult = await analyzePlace({
+        query: trimmedQuery,
+        location: userLocation
+      });
 
       setSearchState({
         isLoading: false,
@@ -70,12 +83,15 @@ function App() {
       });
 
     } catch (error) {
-      console.error(error);
+      const errorState = getMessageFromError(error);
       setSearchState({
         isLoading: false,
         step: 'error',
-        message: '分析中にエラーが発生しました。もう一度お試しください。'
+        message: errorState.message,
+        errorCode: errorState.code
       });
+    } finally {
+      window.clearTimeout(progressTimer);
     }
   };
 
@@ -94,7 +110,7 @@ function App() {
       <header className="bg-white border-b border-gray-200 pt-16 pb-24 px-4 text-center relative overflow-hidden">
         <div className="max-w-2xl mx-auto relative z-10">
           <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-4 tracking-tight">
-            <span className="text-blue-600">Google Map</span> ぼったくりチェッカー
+            <span className="text-blue-600">Google</span> ぼったくりチェッカー
           </h1>
           <p className="text-gray-600 mb-8">
             最新のAIを使って、Googleマップのクチコミの信頼性を分析。<br/>
