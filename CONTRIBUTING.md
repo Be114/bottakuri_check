@@ -60,3 +60,12 @@ npm run test
 - [ ] Tests pass.
 - [ ] API behavior remains compatible.
 - [ ] Documentation updated when behavior/contract changed.
+- [ ] CodeRabbit review feedback was reviewed and reflected.
+
+## Code review with CodeRabbit
+
+- This repository uses `/Users/bentaku/bottakuri_check/.coderabbit.yaml`.
+- Automatic review is enabled for PRs targeting `main`.
+- Optional manual commands in PR comments:
+  - `@coderabbitai review`
+  - `@coderabbitai full review`

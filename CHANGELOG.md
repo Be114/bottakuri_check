@@ -11,6 +11,8 @@ All notable changes to this project are documented in this file.
 - CI workflow (`.github/workflows/ci.yml`) with build, typecheck, and test gates.
 - OpenAPI spec at `/Users/bentaku/bottakuri_check/docs/openapi.yaml`.
 - Contributing guide at `/Users/bentaku/bottakuri_check/CONTRIBUTING.md`.
+- CodeRabbit auto review configuration at `/Users/bentaku/bottakuri_check/.coderabbit.yaml`.
+- Pull request template with CodeRabbit review checklist.
 
 ### Changed
 

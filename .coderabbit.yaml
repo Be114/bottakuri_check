@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: ja-JP
+
+tone_instructions: |
+  指摘は簡潔に、再現手順と修正案を明示してください。
+  UI機能追加よりも、信頼性・安全性・運用性の改善を優先してください。
+
+reviews:
+  profile: assertive
+  high_level_summary: true
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+
+chat:
+  auto_reply: true
