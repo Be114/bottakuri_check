@@ -250,14 +250,10 @@ function App() {
             >
               <div className="text-center mb-12">
                 <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 mb-6">
-                  怪しいクチコミに騙されない。
-                  <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                    AIがお店の「リアル」を暴く。
-                  </span>
+                  飲食店サクラチェッカー
                 </h1>
                 <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-                  最新のAIを使って、Googleマップのクチコミの信頼性を分析。他のグルメサイトとの評価のズレや、サクラ投稿を自動検出して、失敗しないお店選びをサポートします。
+                  Googleマップのクチコミの信頼性をAIで分析。他のグルメサイトとの評価ズレや、サクラ投稿を調査して、失敗しないお店選びをサポートします。
                 </p>
               </div>
 
