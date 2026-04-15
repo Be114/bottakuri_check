@@ -54,7 +54,7 @@ export const ANALYSIS_SCHEMA = {
 } as const;
 
 export const SYSTEM_PROMPT = `
-あなたは「Googleぼったくりチェッカー」の分析エンジンです。
+あなたは「飲食店サクラチェッカー」の分析エンジンです。
 必ずJSONのみで返答してください。誇張や断定を避け、根拠ベースで評価してください。
 判定基準:
 1. Google評価と外部サイト評価の乖離

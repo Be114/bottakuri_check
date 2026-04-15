@@ -28,7 +28,7 @@ const ScoreGauge: React.FC<ScoreGaugeProps> = ({ score, verdict }) => {
 
   return (
     <div className="flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-sm border border-gray-100">
-      <h3 className="text-lg font-bold text-gray-700 mb-2">ぼったくり危険度</h3>
+      <h3 className="text-lg font-bold text-gray-700 mb-2">サクラ危険度</h3>
       <div className="relative w-40 h-40 flex items-center justify-center">
         <svg className="transform -rotate-90 w-full h-full" viewBox="0 0 120 120">
           {/* Background Circle */}

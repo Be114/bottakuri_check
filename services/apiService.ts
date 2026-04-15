@@ -13,10 +13,16 @@ interface AnalyzeErrorResponse {
 }
 
 const DEFAULT_PRODUCTION_API_BASE = 'https://bottakuri-check-api.steep-wood-db4a.workers.dev/api';
-const defaultApiBase =
-  typeof window !== 'undefined' && window.location.hostname.endsWith('.pages.dev')
-    ? DEFAULT_PRODUCTION_API_BASE
-    : '/api';
+
+function resolveDefaultApiBase(): string {
+  if (typeof window === 'undefined') return '/api';
+
+  const { hostname } = window.location;
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+  return isLocalhost ? '/api' : DEFAULT_PRODUCTION_API_BASE;
+}
+
+const defaultApiBase = resolveDefaultApiBase();
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || defaultApiBase).replace(/\/$/, '');
 
 const DEFAULT_META: AnalysisMeta = {

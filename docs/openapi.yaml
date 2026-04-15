@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Googleぼったくりチェッカー API
+  title: 飲食店サクラチェッカー API
   version: 1.0.0
   description: |
     Cloudflare Workers が提供する API 仕様です。

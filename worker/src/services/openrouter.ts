@@ -42,7 +42,7 @@ ${reviewLines}
 実施タスク:
 1. Web情報(食べログ/Retty等)も参照し、Google評価との乖離を評価する
 2. サクラ疑いキーワードや不自然な文体を抽出する
-3. ぼったくり危険度(sakuraScore)を0-100で出す
+3. サクラ危険度(sakuraScore)を0-100で出す
 4. reviewDistributionは1-5星の割合を整数で返す
 5. summaryは簡潔に返す
 6. 食べログ値は圧縮スケールとして補正し、estimatedRealRating はGoogle換算後の値を返す
@@ -63,7 +63,7 @@ ${reviewLines}
         'Content-Type': 'application/json',
         Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
         'HTTP-Referer': env.OPENROUTER_SITE_URL || 'http://localhost:3000',
-        'X-Title': env.OPENROUTER_APP_NAME || 'Googleぼったくりチェッカー',
+        'X-Title': env.OPENROUTER_APP_NAME || '飲食店サクラチェッカー',
       },
       body: JSON.stringify({
         model: modelId,

@@ -52,7 +52,7 @@ export function createMockEnv(overrides: Partial<Env> = {}): { env: Env; kv: Mem
     REVIEW_SAMPLE_LIMIT: '8',
     DAY_ROLLOVER_TIMEZONE: 'Asia/Tokyo',
     OPENROUTER_SITE_URL: 'http://localhost:3000',
-    OPENROUTER_APP_NAME: 'Googleぼったくりチェッカー',
+    OPENROUTER_APP_NAME: '飲食店サクラチェッカー',
     ...overrides,
   };
 

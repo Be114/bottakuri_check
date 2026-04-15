@@ -2,7 +2,6 @@ import React from 'react';
 import { AnalysisReport } from '../types';
 import ScoreGauge from './ScoreGauge';
 import ReviewChart from './ReviewChart';
-import AdBanner from './AdBanner';
 import { AlertTriangle, CheckCircle, ExternalLink, MapPin, Store, TrendingDown, Search } from 'lucide-react';
 
 interface AnalysisDashboardProps {
@@ -195,8 +194,6 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ data, onReset }) 
           {data.meta.cached ? 'キャッシュ結果' : '新規分析'}
         </span>
       </div>
-
-      <AdBanner />
     </div>
   );
 };

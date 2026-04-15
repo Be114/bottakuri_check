@@ -5,8 +5,6 @@
 - Keep UI simple. Do not add history, ranking, or login features.
 - Keep model fixed to `google/gemini-3-flash-preview`.
 - Never expose API keys to frontend code.
-- Keep ads non-interfering with analysis logic.
-- Do not remove the static AdSense head snippet in `/Users/bentaku/bottakuri_check/index.html`.
 
 ## Local setup
 

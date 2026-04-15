@@ -110,7 +110,7 @@ function App() {
       <header className="bg-white border-b border-gray-200 pt-16 pb-24 px-4 text-center relative overflow-hidden">
         <div className="max-w-2xl mx-auto relative z-10">
           <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-4 tracking-tight">
-            <span className="text-blue-600">Google</span> ぼったくりチェッカー
+            飲食店サクラチェッカー
           </h1>
           <p className="text-gray-600 mb-8">
             最新のAIを使って、Googleマップのクチコミの信頼性を分析。<br/>
@@ -181,7 +181,7 @@ function App() {
             <FeatureCard 
                icon={<span className="text-2xl">📊</span>}
                title="ひと目でわかる危険度"
-               desc="お店の「ぼったくり危険度」を0%〜100%の数値で表示。グラフや詳細レポートで、なぜ危険なのかを分かりやすく解説します。"
+               desc="お店の「サクラ危険度」を0%〜100%の数値で表示。グラフや詳細レポートで、なぜ危険なのかを分かりやすく解説します。"
             />
          </div>
 

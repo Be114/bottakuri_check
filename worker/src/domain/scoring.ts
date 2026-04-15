@@ -70,8 +70,9 @@ function lerp(value: number, inMin: number, inMax: number, outMin: number, outMa
 }
 
 export function inferScoreFromText(summary: string): number {
-  const normalized = summary.toLowerCase();
-  if (normalized.includes('ぼったくり') || normalized.includes('詐欺')) return 75;
-  if (normalized.includes('注意') || normalized.includes('不自然')) return 50;
+  const normalized = summary.normalize('NFKC');
+  const asciiLower = normalized.toLowerCase();
+  if (normalized.includes('サクラ') || normalized.includes('詐欺') || asciiLower.includes('scam')) return 75;
+  if (normalized.includes('注意') || normalized.includes('不自然') || asciiLower.includes('suspicious')) return 50;
   return 30;
 }
