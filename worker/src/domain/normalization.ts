@@ -52,7 +52,7 @@ export function normalizeAnalysis(
     sakuraScore,
     estimatedRealRating: roundTo(estimatedRealRating, 2),
     googleRating: place.googleRating,
-    tabelogRating: tabelogRating === null ? undefined : roundTo(clampNumber(tabelogRating, 1, 5), 2),
+    tabelogRating: tabelogRating === null ? undefined : roundTo(tabelogRating, 2),
     verdict,
     risks,
     suspiciousKeywordsFound,
@@ -166,9 +166,24 @@ function normalizeDistribution(raw: unknown, score: number): ReviewDistribution[
 
   const adjustedTotal = normalized.reduce((sum, item) => sum + item.percentage, 0);
   const diff = 100 - adjustedTotal;
-  if (diff !== 0) {
+  if (diff > 0) {
     const target = normalized.find((item) => item.star === 5) || normalized[normalized.length - 1];
-    target.percentage = Math.max(0, target.percentage + diff);
+    target.percentage += diff;
+  } else if (diff < 0) {
+    let remaining = -diff;
+    const target = normalized.find((item) => item.star === 5) || normalized[normalized.length - 1];
+    const reduction = Math.min(target.percentage, remaining);
+    target.percentage -= reduction;
+    remaining -= reduction;
+
+    if (remaining > 0) {
+      for (const item of normalized) {
+        if (item === target || remaining <= 0) continue;
+        const step = Math.min(item.percentage, remaining);
+        item.percentage -= step;
+        remaining -= step;
+      }
+    }
   }
 
   return normalized;
@@ -220,6 +235,8 @@ export function isAnalysisReport(value: unknown): value is AnalysisReport {
     typeof record.placeName === 'string' &&
     typeof record.address === 'string' &&
     typeof record.sakuraScore === 'number' &&
+    typeof record.verdict === 'string' &&
+    typeof record.summary === 'string' &&
     Array.isArray(record.risks) &&
     Array.isArray(record.reviewDistribution) &&
     Array.isArray(record.groundingUrls) &&

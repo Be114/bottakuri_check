@@ -69,6 +69,9 @@ function lerp(value: number, inMin: number, inMax: number, outMin: number, outMa
   return outMin + (outMax - outMin) * ratio;
 }
 
+/**
+ * Fallback heuristic used only when LLM does not provide a numeric score.
+ */
 export function inferScoreFromText(summary: string): number {
   const normalized = summary.normalize('NFKC');
   const asciiLower = normalized.toLowerCase();

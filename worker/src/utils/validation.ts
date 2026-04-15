@@ -3,6 +3,7 @@ import { AnalyzeRequest } from '../types';
 
 export function sanitizeQuery(rawQuery: unknown): string {
   if (typeof rawQuery !== 'string') return '';
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional sanitization for control characters
   return rawQuery.replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
@@ -18,6 +19,7 @@ export function sanitizeLocation(
 }
 
 export function toPositiveInt(rawValue: string | null | undefined, fallback: number): number {
+  // Returns a non-negative integer (0 is valid).
   const parsed = Number(rawValue);
   if (!Number.isFinite(parsed) || parsed < 0) return fallback;
   return Math.floor(parsed);

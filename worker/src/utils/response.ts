@@ -6,6 +6,8 @@ export class ApiHttpError extends Error {
 
   constructor(code: ErrorCode, status: number, message: string) {
     super(message);
+    this.name = 'ApiHttpError';
+    Object.setPrototypeOf(this, ApiHttpError.prototype);
     this.code = code;
     this.status = status;
   }

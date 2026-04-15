@@ -10,13 +10,16 @@ vi.mock('../services/apiService', () => ({
 
 describe('App loading state', () => {
   it('shows loading message while analysis request is pending', async () => {
-    vi.mocked(analyzePlace).mockReturnValue(new Promise(() => {
-      // Keep pending to verify loading UI.
-    }) as never);
+    vi.mocked(analyzePlace).mockImplementation(
+      () =>
+        new Promise(() => {
+          // Keep pending to verify loading UI.
+        })
+    );
 
     render(<App />);
 
-    const input = screen.getByPlaceholderText('店名や場所を入力 (例: 新宿 居酒屋 〇〇)');
+    const input = screen.getByLabelText('店舗検索入力');
     fireEvent.change(input, { target: { value: '新宿 居酒屋' } });
 
     const form = input.closest('form');

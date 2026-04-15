@@ -62,7 +62,7 @@ npm run test
 
 ## Code review with CodeRabbit
 
-- This repository uses `/Users/bentaku/bottakuri_check/.coderabbit.yaml`.
+- This repository uses [`.coderabbit.yaml`](.coderabbit.yaml).
 - Automatic review is enabled for PRs targeting `main`.
 - Optional manual commands in PR comments:
   - `@coderabbitai review`

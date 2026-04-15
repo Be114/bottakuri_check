@@ -10,6 +10,7 @@ servers:
     description: Production
   - url: http://127.0.0.1:8787
     description: Local worker dev
+security: []
 paths:
   /api/health:
     get:
@@ -201,29 +202,32 @@ components:
           minimum: 0
           maximum: 5
         tabelogRating:
-          type: number
+          type: [number, 'null']
           minimum: 1
           maximum: 5
-          nullable: true
         verdict:
           type: string
           enum: [安全, 注意, 危険]
         risks:
           type: array
+          maxItems: 8
           items:
             $ref: '#/components/schemas/AnalysisRisk'
         suspiciousKeywordsFound:
           type: array
+          maxItems: 15
           items:
             type: string
         summary:
           type: string
         reviewDistribution:
           type: array
+          maxItems: 5
           items:
             $ref: '#/components/schemas/ReviewDistribution'
         groundingUrls:
           type: array
+          maxItems: 10
           items:
             $ref: '#/components/schemas/GroundingUrl'
         meta:
