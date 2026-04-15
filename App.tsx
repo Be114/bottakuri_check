@@ -95,9 +95,20 @@ function AnimatedGaugeSVG() {
       <line x1="16" y1="36" x2="20" y2="38" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round" />
       <line x1="32" y1="24" x2="32" y2="28" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round" />
       <line x1="48" y1="36" x2="44" y2="38" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round" />
+      <motion.line
+        x1="32"
+        y1="46"
+        x2="32"
+        y2="26"
+        stroke="#334155"
+        strokeWidth="3"
+        strokeLinecap="round"
+        style={{ originX: 0.5, originY: 1 }}
+        animate={{ rotate: [-60, 50, -10, 70, 20] }}
+        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+      />
       <circle cx="32" cy="46" r="5" fill="#334155" />
       <circle cx="32" cy="46" r="2" fill="white" />
-      <motion.line x1="32" y1="46" x2="16" y2="28" stroke="#334155" strokeWidth="3" strokeLinecap="round" style={{ transformOrigin: '32px 46px' }} animate={{ rotate: [0, 110, 50, 130, 90] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }} />
       <motion.circle cx="54" cy="20" r="4" fill="#EF4444" animate={{ scale: [1, 1.6, 1], opacity: [1, 0, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} />
     </svg>
   );
