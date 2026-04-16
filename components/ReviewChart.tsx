@@ -1,36 +1,52 @@
-import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { motion } from 'motion/react';
 
 interface ReviewChartProps {
   data: { star: number; percentage: number }[];
 }
 
-const ReviewChart: React.FC<ReviewChartProps> = ({ data }) => {
-  // Ensure data is sorted 5 to 1 for display if needed, but typically graphs go 1-5 or 5-1.
-  // Let's display 5 stars on top if vertical, or left-to-right 1->5.
-  // Standard breakdown is usually 5, 4, 3, 2, 1 top to bottom or left to right.
-  // Let's sort 1 to 5 for standard X-Axis
-  const sortedData = [...data].sort((a, b) => a.star - b.star);
+const EMPTY_DISTRIBUTION = [1, 2, 3, 4, 5].map((star) => ({ star, percentage: 0 }));
+
+function normalizeDistribution(data: ReviewChartProps['data']) {
+  const source = data.length > 0 ? data : EMPTY_DISTRIBUTION;
+  return [...source]
+    .filter((item) => Number.isFinite(item.star) && Number.isFinite(item.percentage))
+    .sort((a, b) => a.star - b.star)
+    .map((item) => ({
+      star: item.star,
+      percentage: Math.min(100, Math.max(0, Math.round(item.percentage))),
+    }));
+}
+
+const ReviewChart = ({ data }: ReviewChartProps) => {
+  const normalizedData = normalizeDistribution(data);
+  const maxValue = Math.max(...normalizedData.map((item) => item.percentage), 1);
 
   return (
-    <div className="w-full h-64 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-      <h3 className="text-sm font-bold text-gray-700 mb-4">評価分布（推定）</h3>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={sortedData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-          <XAxis type="number" hide />
-          <YAxis type="category" dataKey="star" tickFormatter={(val) => `★${val}`} width={40} />
-          <Tooltip 
-            formatter={(value: number) => [`${value}%`, '割合']}
-            contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-          />
-          <Bar dataKey="percentage" barSize={20} radius={[0, 4, 4, 0]}>
-            {sortedData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.star === 5 || entry.star === 1 ? '#f87171' : '#60a5fa'} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-      <div className="text-xs text-gray-400 text-right mt-1">* 赤色は注意すべき極端な評価</div>
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+      <h2 className="text-lg font-bold text-slate-800 mb-6">評価分布（推定）</h2>
+      <div className="flex flex-col gap-4 mt-4 relative">
+        <div className="absolute left-8 top-0 bottom-0 w-px bg-slate-300 z-0" />
+        {normalizedData.map((item) => {
+          const barWidth = item.percentage === 0 ? 0 : Math.max(6, (item.percentage / maxValue) * 85);
+          const colorClass = item.star === 1 || item.star === 5 ? 'bg-red-400' : 'bg-blue-400';
+
+          return (
+            <div key={item.star} className="flex items-center gap-3 z-10">
+              <span className="w-8 text-right text-slate-600 font-medium">★{item.star}</span>
+              <div className="flex-1 h-6 flex items-center">
+                <motion.div
+                  className={`h-full rounded-r-md ${colorClass}`}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${barWidth}%` }}
+                  transition={{ duration: 1, delay: item.star * 0.1, ease: 'easeOut' }}
+                />
+              </div>
+              <span className="w-10 text-right text-xs text-slate-400">{item.percentage}%</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="text-right mt-4 text-xs text-slate-400">* 赤色は注意すべき極端な評価</div>
     </div>
   );
 };

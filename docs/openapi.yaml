@@ -1,0 +1,352 @@
+openapi: 3.1.0
+info:
+  title: 飲食店サクラチェッカー API
+  version: 1.0.0
+  description: |
+    Cloudflare Workers が提供する API 仕様です。
+    既存契約を維持しつつ、エラー時に requestId を返します。
+servers:
+  - url: https://bottakuri-check-api.steep-wood-db4a.workers.dev
+    description: Production
+  - url: http://127.0.0.1:8787
+    description: Local worker dev
+security: []
+paths:
+  /api/health:
+    get:
+      summary: APIヘルス状態を取得
+      operationId: getHealth
+      responses:
+        '200':
+          description: 正常
+          headers:
+            X-Request-Id:
+              description: リクエスト識別子
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '405':
+          description: Method Not Allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/analyze:
+    post:
+      summary: 店舗分析を実行
+      operationId: analyzePlace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeRequest'
+      responses:
+        '200':
+          description: 正常
+          headers:
+            X-Request-Id:
+              description: リクエスト識別子
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisReport'
+        '400':
+          description: 入力エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Origin拒否
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: レート制限・予算超過
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: モデル利用不可
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 想定外エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    options:
+      summary: CORS preflight
+      operationId: analyzePreflight
+      responses:
+        '204':
+          description: Preflight OK
+        '403':
+          description: Origin拒否
+components:
+  schemas:
+    AnalyzeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        query:
+          type: string
+          minLength: 2
+          maxLength: 80
+          example: 新宿 居酒屋
+        location:
+          type: object
+          additionalProperties: false
+          properties:
+            lat:
+              type: number
+              minimum: -90
+              maximum: 90
+            lng:
+              type: number
+              minimum: -180
+              maximum: 180
+      required:
+        - query
+    AnalysisRisk:
+      type: object
+      additionalProperties: false
+      properties:
+        category:
+          type: string
+        riskLevel:
+          type: string
+          enum: [low, medium, high]
+        description:
+          type: string
+      required:
+        - category
+        - riskLevel
+        - description
+    ReviewDistribution:
+      type: object
+      additionalProperties: false
+      properties:
+        star:
+          type: integer
+          minimum: 1
+          maximum: 5
+        percentage:
+          type: integer
+          minimum: 0
+          maximum: 100
+      required:
+        - star
+        - percentage
+    GroundingUrl:
+      type: object
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+        uri:
+          type: string
+          format: uri
+      required:
+        - title
+        - uri
+    AnalysisMeta:
+      type: object
+      additionalProperties: false
+      properties:
+        cached:
+          type: boolean
+        model:
+          type: string
+          example: google/gemini-3-flash-preview
+        generatedAt:
+          type: string
+          format: date-time
+        budgetState:
+          type: string
+          enum: [ok, capped]
+      required:
+        - cached
+        - model
+        - generatedAt
+        - budgetState
+    AnalysisReport:
+      type: object
+      additionalProperties: false
+      properties:
+        placeName:
+          type: string
+        address:
+          type: string
+        sakuraScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        estimatedRealRating:
+          type: number
+          minimum: 1
+          maximum: 5
+        googleRating:
+          type: number
+          minimum: 0
+          maximum: 5
+        tabelogRating:
+          type: [number, 'null']
+          minimum: 1
+          maximum: 5
+        verdict:
+          type: string
+          enum: [安全, 注意, 危険]
+        risks:
+          type: array
+          maxItems: 8
+          items:
+            $ref: '#/components/schemas/AnalysisRisk'
+        suspiciousKeywordsFound:
+          type: array
+          maxItems: 15
+          items:
+            type: string
+        summary:
+          type: string
+        reviewDistribution:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/ReviewDistribution'
+        groundingUrls:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/GroundingUrl'
+        meta:
+          $ref: '#/components/schemas/AnalysisMeta'
+      required:
+        - placeName
+        - address
+        - sakuraScore
+        - estimatedRealRating
+        - googleRating
+        - verdict
+        - risks
+        - suspiciousKeywordsFound
+        - summary
+        - reviewDistribution
+        - groundingUrls
+        - meta
+    HealthMetrics:
+      type: object
+      additionalProperties: false
+      properties:
+        requests:
+          type: integer
+          minimum: 0
+        cacheHits:
+          type: integer
+          minimum: 0
+        newAnalysisCount:
+          type: integer
+          minimum: 0
+        rateLimitedCount:
+          type: integer
+          minimum: 0
+        budgetExceededCount:
+          type: integer
+          minimum: 0
+        errorCount:
+          type: integer
+          minimum: 0
+        cacheHitRate:
+          type: number
+          minimum: 0
+      required:
+        - requests
+        - cacheHits
+        - newAnalysisCount
+        - rateLimitedCount
+        - budgetExceededCount
+        - errorCount
+        - cacheHitRate
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        model:
+          type: string
+          example: google/gemini-3-flash-preview
+        dailyCap:
+          type: integer
+          minimum: 1
+        cacheTtlSeconds:
+          type: integer
+          minimum: 1
+        limits:
+          type: object
+          additionalProperties: false
+          properties:
+            perMinute:
+              type: integer
+              minimum: 0
+            perDayNewAnalysis:
+              type: integer
+              minimum: 0
+            reviewSampleLimit:
+              type: integer
+              minimum: 0
+          required:
+            - perMinute
+            - perDayNewAnalysis
+            - reviewSampleLimit
+        dayRolloverTimezone:
+          type: string
+        metrics:
+          $ref: '#/components/schemas/HealthMetrics'
+      required:
+        - status
+        - model
+        - dailyCap
+        - cacheTtlSeconds
+        - limits
+        - dayRolloverTimezone
+        - metrics
+    ApiError:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          enum:
+            - INVALID_QUERY
+            - RATE_LIMIT
+            - BUDGET_EXCEEDED
+            - MODEL_UNAVAILABLE
+            - UPSTREAM_ERROR
+        message:
+          type: string
+        requestId:
+          type: string
+      required:
+        - code
+        - message
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        error:
+          $ref: '#/components/schemas/ApiError'
+      required:
+        - error

@@ -13,10 +13,16 @@ interface AnalyzeErrorResponse {
 }
 
 const DEFAULT_PRODUCTION_API_BASE = 'https://bottakuri-check-api.steep-wood-db4a.workers.dev/api';
-const defaultApiBase =
-  typeof window !== 'undefined' && window.location.hostname.endsWith('.pages.dev')
-    ? DEFAULT_PRODUCTION_API_BASE
-    : '/api';
+
+function resolveDefaultApiBase(): string {
+  if (typeof window === 'undefined') return '/api';
+
+  const { hostname } = window.location;
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+  return isLocalhost ? '/api' : DEFAULT_PRODUCTION_API_BASE;
+}
+
+const defaultApiBase = resolveDefaultApiBase();
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || defaultApiBase).replace(/\/$/, '');
 
 const DEFAULT_META: AnalysisMeta = {
@@ -42,9 +48,7 @@ function normalizeReport(payload: Partial<AnalysisReport>): AnalysisReport {
     tabelogRating: payload.tabelogRating,
     verdict: payload.verdict || '注意',
     risks: Array.isArray(payload.risks) ? payload.risks : [],
-    suspiciousKeywordsFound: Array.isArray(payload.suspiciousKeywordsFound)
-      ? payload.suspiciousKeywordsFound
-      : [],
+    suspiciousKeywordsFound: Array.isArray(payload.suspiciousKeywordsFound) ? payload.suspiciousKeywordsFound : [],
     summary: payload.summary || '分析結果の要約を取得できませんでした。',
     reviewDistribution: Array.isArray(payload.reviewDistribution) ? payload.reviewDistribution : [],
     groundingUrls: Array.isArray(payload.groundingUrls) ? payload.groundingUrls : [],

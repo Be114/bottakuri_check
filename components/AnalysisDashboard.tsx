@@ -1,182 +1,236 @@
-import React from 'react';
-import { AnalysisReport } from '../types';
+import { type FC } from 'react';
+import { motion } from 'motion/react';
+import { AlertTriangle, CheckCircle2, ExternalLink, MapPin, Search, Store, TrendingDown } from 'lucide-react';
+import { AnalysisReport, AnalysisRisk } from '../types';
 import ScoreGauge from './ScoreGauge';
 import ReviewChart from './ReviewChart';
-import AdBanner from './AdBanner';
-import { AlertTriangle, CheckCircle, ExternalLink, MapPin, Store, TrendingDown, Search } from 'lucide-react';
 
 interface AnalysisDashboardProps {
   data: AnalysisReport;
   onReset: () => void;
 }
 
-const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ data, onReset }) => {
+const RISK_STYLE: Record<AnalysisRisk['riskLevel'], { icon: string; badge: string; label: string; text: string }> = {
+  low: {
+    icon: 'bg-emerald-100 text-emerald-600',
+    badge: 'bg-emerald-100 text-emerald-700',
+    label: '安全',
+    text: 'text-emerald-600',
+  },
+  medium: {
+    icon: 'bg-amber-100 text-amber-600',
+    badge: 'bg-amber-100 text-amber-700',
+    label: '注意',
+    text: 'text-amber-600',
+  },
+  high: {
+    icon: 'bg-red-100 text-red-600',
+    badge: 'bg-red-100 text-red-700',
+    label: '危険',
+    text: 'text-red-600',
+  },
+};
+
+function formatRating(value: number): string {
+  if (!Number.isFinite(value)) return '-';
+  return value.toFixed(1);
+}
+
+function formatGeneratedAt(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('ja-JP');
+}
+
+function RiskIcon({ riskLevel }: { riskLevel: AnalysisRisk['riskLevel'] }) {
+  if (riskLevel === 'low') return <CheckCircle2 className="w-5 h-5" />;
+  return <AlertTriangle className="w-5 h-5" />;
+}
+
+const AnalysisDashboard: FC<AnalysisDashboardProps> = ({ data, onReset }) => {
   const diff = data.googleRating - data.estimatedRealRating;
   const isSuspiciousDiff = diff > 0.8;
-  const generatedAtText = new Date(data.meta.generatedAt).toLocaleString('ja-JP');
+  const generatedAtText = formatGeneratedAt(data.meta.generatedAt);
+  const sourceLinks = data.groundingUrls.filter((link) => link.uri);
 
   return (
-    <div className="max-w-5xl mx-auto p-4 pb-20 space-y-6 animate-fade-in">
-      {/* Header Section */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <motion.section
+      key="result"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-6"
+    >
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <div className="flex items-center gap-2 text-blue-600 font-medium text-sm mb-1">
-            <MapPin size={16} />
+          <div className="flex items-center gap-2 text-blue-600 text-sm font-medium mb-1">
+            <MapPin className="w-4 h-4 shrink-0" />
             <span>{data.address}</span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{data.placeName}</h1>
+          <h1 className="text-3xl font-bold text-slate-900">{data.placeName}</h1>
         </div>
-        <button 
+        <button
+          type="button"
           onClick={onReset}
-          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+          className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors"
         >
-          <Search size={16} />
+          <Search className="w-4 h-4" />
           別の場所を検索
         </button>
       </div>
 
-      {/* Top Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Score Gauge */}
-        <div className="md:col-span-1">
-          <ScoreGauge score={data.sakuraScore} verdict={data.verdict} />
-        </div>
+      <div className="grid md:grid-cols-3 gap-6">
+        <ScoreGauge score={data.sakuraScore} verdict={data.verdict} />
 
-        {/* Rating Comparison */}
-        <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between relative overflow-hidden">
-            <div className="z-10">
-              <div className="flex items-center gap-2 text-gray-500 mb-2">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/120px-Google_%22G%22_logo.svg.png" alt="Google" className="w-5 h-5" />
-                <span className="font-bold text-sm">Google評価</span>
+        <div className="md:col-span-2 flex flex-col gap-6">
+          <div className="grid sm:grid-cols-2 gap-6 h-full">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -z-0" />
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl font-bold text-blue-600">G</span>
+                  <span className="font-bold text-slate-700">Google評価</span>
+                </div>
+                <div className="text-5xl font-bold text-slate-900 mb-1">{formatRating(data.googleRating)}</div>
+                <div className="text-sm text-slate-500">ユーザーレビュー</div>
               </div>
-              <div className="text-4xl font-bold text-gray-800">{data.googleRating.toFixed(1)}</div>
-              {data.reviewDistribution.length > 0 && (
-                <div className="text-xs text-gray-400 mt-1">ユーザーレビュー</div>
-              )}
             </div>
-            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-bl-full -mr-4 -mt-4"></div>
-          </div>
 
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between relative overflow-hidden">
-            <div className="z-10">
-              <div className="flex items-center gap-2 text-gray-500 mb-2">
-                <Store size={18} className="text-orange-500" />
-                <span className="font-bold text-sm">実力値（補正後）</span>
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 relative overflow-hidden">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Store className="w-5 h-5 text-orange-500" />
+                  <span className="font-bold text-slate-700">実力値（補正後）</span>
+                </div>
               </div>
-              <div className={`text-4xl font-bold ${isSuspiciousDiff ? 'text-red-500' : 'text-gray-800'}`}>
-                {data.estimatedRealRating.toFixed(1)}
+              <div className={`text-5xl font-bold mb-2 ${isSuspiciousDiff ? 'text-red-500' : 'text-slate-900'}`}>
+                {formatRating(data.estimatedRealRating)}
               </div>
               {data.tabelogRating ? (
-                 <div className="text-xs text-orange-500 font-medium mt-1">
-                   食べログ生値: {data.tabelogRating.toFixed(2)}（補正済み）
-                 </div>
+                <div className="text-sm font-medium text-orange-600 mb-4">
+                  食べログ生値: {data.tabelogRating.toFixed(2)}（補正済み）
+                </div>
               ) : (
-                 <div className="text-xs text-gray-400 mt-1">AIによる補正値</div>
+                <div className="text-sm text-slate-500 mb-4">AIによる補正値</div>
+              )}
+              {isSuspiciousDiff && (
+                <div className="absolute bottom-4 right-4 bg-red-100 text-red-700 px-3 py-1 rounded text-sm font-bold flex items-center gap-1">
+                  <TrendingDown className="w-4 h-4" />
+                  乖離大
+                </div>
               )}
             </div>
-            {isSuspiciousDiff && (
-              <div className="absolute bottom-4 right-4 bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
-                <TrendingDown size={14} />
-                乖離大
-              </div>
-            )}
           </div>
-          
-          {/* Discrepancy Explanation */}
-          <div className="sm:col-span-2 bg-orange-50 border border-orange-100 rounded-lg p-3 flex items-start gap-3">
-             <AlertTriangle className="text-orange-500 shrink-0 mt-0.5" size={18} />
-             <p className="text-sm text-orange-800 leading-relaxed">
-               {isSuspiciousDiff 
-                 ? `Googleの評価(${data.googleRating})と補正後実力値(${data.estimatedRealRating.toFixed(1)})に大きな乖離があります。評価のかさ増しが行われている可能性があります。`
-                 : `Googleの評価と実力値に大きな矛盾は見られません。比較的信頼できる評価分布です。`}
-             </p>
+
+          <div
+            className={`${isSuspiciousDiff ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'} border rounded-xl p-4 flex items-start gap-3`}
+          >
+            {isSuspiciousDiff ? (
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+            ) : (
+              <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+            )}
+            <p className="text-sm leading-relaxed">
+              {isSuspiciousDiff
+                ? `Googleの評価(${formatRating(data.googleRating)})と補正後実力値(${formatRating(data.estimatedRealRating)})に大きな乖離があります。評価のかさ増しが行われている可能性があります。`
+                : 'Googleの評価と実力値に大きな矛盾は見られません。比較的信頼できる評価分布です。'}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Main Analysis Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Risks & Keywords */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Risk Breakdown */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-              <h3 className="font-bold text-gray-800">判定詳細レポート</h3>
-            </div>
-            <div className="divide-y divide-gray-100">
-              {data.risks.map((risk, index) => (
-                <div key={index} className="p-4 flex items-start gap-4">
-                  <div className={`shrink-0 mt-1 w-8 h-8 rounded-full flex items-center justify-center ${
-                    risk.riskLevel === 'high' ? 'bg-red-100 text-red-600' : 
-                    risk.riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-600' : 'bg-green-100 text-green-600'
-                  }`}>
-                    {risk.riskLevel === 'high' ? <AlertTriangle size={16} /> : <CheckCircle size={16} />}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-gray-800 text-sm">{risk.category}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                        risk.riskLevel === 'high' ? 'bg-red-100 text-red-700' : 
-                        risk.riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
-                      }`}>
-                        {risk.riskLevel === 'high' ? '危険' : risk.riskLevel === 'medium' ? '注意' : '安全'}
-                      </span>
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="p-5 border-b border-slate-100 bg-slate-50/50">
+            <h2 className="text-lg font-bold text-slate-800">判定詳細レポート</h2>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {data.risks.length > 0 ? (
+              data.risks.map((risk, index) => {
+                const style = RISK_STYLE[risk.riskLevel] || RISK_STYLE.medium;
+                return (
+                  <div key={`${risk.category}-${index}`} className="p-5 flex gap-4">
+                    <div className="shrink-0 mt-1">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${style.icon}`}>
+                        <RiskIcon riskLevel={risk.riskLevel} />
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-600 leading-relaxed">{risk.description}</p>
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="font-bold text-slate-900">{risk.category}</h3>
+                        <span className={`px-2 py-0.5 text-xs font-bold rounded ${style.badge}`}>{style.label}</span>
+                      </div>
+                      <p className="text-slate-600 text-sm leading-relaxed">{risk.description}</p>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="p-5 flex gap-4">
+                <div className="shrink-0 mt-1">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                    <CheckCircle2 className="w-5 h-5" />
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* AI Summary */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-             <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-               <span className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs px-2 py-0.5 rounded">AI分析</span>
-               総評
-             </h3>
-             <p className="text-sm text-gray-700 leading-7 whitespace-pre-line">
-               {data.summary}
-             </p>
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="font-bold text-slate-900">目立ったリスクなし</h3>
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded">安全</span>
+                  </div>
+                  <p className="text-slate-600 text-sm leading-relaxed">
+                    現時点で強いサクラ投稿の兆候は検出されませんでした。
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Right Column: Charts & Keywords */}
-        <div className="space-y-6">
-          <ReviewChart data={data.reviewDistribution} />
+        <ReviewChart data={data.reviewDistribution} />
+      </div>
 
-          {/* Keywords Cloud */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-            <h3 className="text-sm font-bold text-gray-700 mb-4">検出された怪しいキーワード</h3>
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-bold tracking-wider">AI分析</span>
+            <h2 className="text-lg font-bold text-slate-800">総評</h2>
+          </div>
+          <p className="text-slate-700 leading-relaxed whitespace-pre-line">{data.summary}</p>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+            <h2 className="text-lg font-bold text-slate-800 mb-4">検出された怪しいキーワード</h2>
             {data.suspiciousKeywordsFound.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {data.suspiciousKeywordsFound.map((word, i) => (
-                  <span key={i} className="px-3 py-1 bg-red-50 text-red-700 text-xs rounded-full border border-red-100">
+                {data.suspiciousKeywordsFound.map((word, index) => (
+                  <span
+                    key={`${word}-${index}`}
+                    className="px-3 py-1 bg-red-50 text-red-700 text-xs rounded-full border border-red-100"
+                  >
                     {word}
                   </span>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-400 italic">怪しいキーワードは検出されませんでした。</p>
+              <p className="text-slate-400 italic text-sm">怪しいキーワードは検出されませんでした。</p>
             )}
           </div>
 
-          {/* Grounding Links */}
-          {data.groundingUrls.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-              <h3 className="text-sm font-bold text-gray-700 mb-3">参照ソース</h3>
-              <ul className="space-y-2">
-                {data.groundingUrls.map((link, i) => (
-                  <li key={i}>
-                    <a 
-                      href={link.uri} 
-                      target="_blank" 
+          {sourceLinks.length > 0 && (
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+              <h2 className="text-lg font-bold text-slate-800 mb-4">参照ソース</h2>
+              <ul className="space-y-3">
+                {sourceLinks.map((link, index) => (
+                  <li key={`${link.uri}-${index}`}>
+                    <a
+                      href={link.uri}
+                      target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-blue-600 hover:underline flex items-start gap-1.5"
+                      className="text-blue-600 hover:underline text-sm flex items-start gap-2"
                     >
-                      <ExternalLink size={12} className="mt-0.5 shrink-0" />
-                      <span className="line-clamp-1">{link.title}</span>
+                      <ExternalLink className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span className="line-clamp-1">{link.title || link.uri}</span>
                     </a>
                   </li>
                 ))}
@@ -186,18 +240,16 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ data, onReset }) 
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-3 flex flex-wrap items-center gap-3 text-xs text-gray-600">
-        <span>モデル: {data.meta.model}</span>
-        <span className="text-gray-300">|</span>
-        <span>生成時刻: {generatedAtText}</span>
-        <span className="text-gray-300">|</span>
-        <span className={data.meta.cached ? 'text-blue-600 font-medium' : 'text-gray-600'}>
+      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex flex-wrap items-center gap-4 text-sm text-slate-500 mt-8">
+        <div>モデル: {data.meta.model}</div>
+        <div className="hidden sm:block w-px h-4 bg-slate-300" />
+        <div>生成時刻: {generatedAtText}</div>
+        <div className="hidden sm:block w-px h-4 bg-slate-300" />
+        <div className={data.meta.cached ? 'text-blue-600 font-medium' : 'text-slate-500'}>
           {data.meta.cached ? 'キャッシュ結果' : '新規分析'}
-        </span>
+        </div>
       </div>
-
-      <AdBanner />
-    </div>
+    </motion.section>
   );
 };
 

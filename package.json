@@ -8,18 +8,43 @@
     "dev:api": "npm --prefix worker run dev",
     "build": "vite build",
     "build:api": "npm --prefix worker run build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:root": "vitest run --config vitest.config.ts",
+    "test:worker": "npm --prefix worker run test",
+    "test": "npm run test:root && npm run test:worker",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck:worker": "npm --prefix worker run typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,css,md,yaml,yml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,css,md,yaml,yml}\""
   },
   "dependencies": {
+    "lucide-react": "^0.554.0",
+    "motion": "^12.38.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "lucide-react": "^0.554.0",
     "recharts": "^3.4.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@tailwindcss/vite": "^4.2.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^22.14.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.5.0",
+    "jsdom": "^28.0.0",
+    "prettier": "^3.8.3",
+    "tailwindcss": "^4.2.2",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "typescript-eslint": "^8.58.2",
+    "vite": "^6.2.0",
+    "vitest": "^4.0.18"
   }
 }
