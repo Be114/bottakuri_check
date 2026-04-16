@@ -1,8 +1,34 @@
 import { PLACES_API_TIMEOUT_MS } from '../constants';
 import { PlaceData, PlaceReview, Env } from '../types';
-import { fetchWithTimeout } from '../utils/http';
+import { fetchJsonWithTimeout } from '../utils/http';
 import { ApiHttpError } from '../utils/response';
 import { clampNumber, toFiniteNumber } from '../utils/validation';
+
+type PlacesSearchResponse = {
+  places?: Array<{
+    id?: string;
+    displayName?: { text?: string };
+    formattedAddress?: string;
+    rating?: number;
+    userRatingCount?: number;
+    location?: { latitude?: number; longitude?: number };
+  }>;
+};
+
+type PlacesDetailsResponse = {
+  id?: string;
+  displayName?: { text?: string };
+  formattedAddress?: string;
+  rating?: number;
+  userRatingCount?: number;
+  location?: { latitude?: number; longitude?: number };
+  reviews?: Array<{
+    rating?: number;
+    text?: { text?: string };
+    publishTime?: string;
+    authorAttribution?: { displayName?: string };
+  }>;
+};
 
 export async function fetchPlaceData(
   query: string,
@@ -28,9 +54,9 @@ export async function fetchPlaceData(
     };
   }
 
-  let searchResponse: Response;
+  let searchResult: { response: Response; json: PlacesSearchResponse | null };
   try {
-    searchResponse = await fetchWithTimeout(
+    searchResult = await fetchJsonWithTimeout<PlacesSearchResponse>(
       'https://places.googleapis.com/v1/places:searchText',
       {
         method: 'POST',
@@ -52,20 +78,11 @@ export async function fetchPlaceData(
     throw new ApiHttpError('UPSTREAM_ERROR', 502, 'Google Places API検索に失敗しました。');
   }
 
-  if (!searchResponse.ok) {
+  if (!searchResult.response.ok || !searchResult.json) {
     throw new ApiHttpError('UPSTREAM_ERROR', 502, 'Google Places API検索に失敗しました。');
   }
 
-  const searchJson = (await searchResponse.json()) as {
-    places?: Array<{
-      id?: string;
-      displayName?: { text?: string };
-      formattedAddress?: string;
-      rating?: number;
-      userRatingCount?: number;
-      location?: { latitude?: number; longitude?: number };
-    }>;
-  };
+  const searchJson = searchResult.json;
 
   const candidate = searchJson.places?.[0];
   const placeId = candidate?.id;
@@ -76,9 +93,9 @@ export async function fetchPlaceData(
   const detailsUrl = new URL(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`);
   detailsUrl.searchParams.set('languageCode', 'ja');
 
-  let detailsResponse: Response;
+  let detailsResult: { response: Response; json: PlacesDetailsResponse | null };
   try {
-    detailsResponse = await fetchWithTimeout(
+    detailsResult = await fetchJsonWithTimeout<PlacesDetailsResponse>(
       detailsUrl.toString(),
       {
         headers: {
@@ -96,24 +113,11 @@ export async function fetchPlaceData(
     throw new ApiHttpError('UPSTREAM_ERROR', 502, 'Google Places API詳細取得に失敗しました。');
   }
 
-  if (!detailsResponse.ok) {
+  if (!detailsResult.response.ok || !detailsResult.json) {
     throw new ApiHttpError('UPSTREAM_ERROR', 502, 'Google Places API詳細取得に失敗しました。');
   }
 
-  const detailsJson = (await detailsResponse.json()) as {
-    id?: string;
-    displayName?: { text?: string };
-    formattedAddress?: string;
-    rating?: number;
-    userRatingCount?: number;
-    location?: { latitude?: number; longitude?: number };
-    reviews?: Array<{
-      rating?: number;
-      text?: { text?: string };
-      publishTime?: string;
-      authorAttribution?: { displayName?: string };
-    }>;
-  };
+  const detailsJson = detailsResult.json;
 
   const reviews = (detailsJson.reviews || [])
     .slice(0, reviewSampleLimit)

@@ -7,7 +7,7 @@ import {
   PlaceData,
   Env,
 } from '../types';
-import { fetchWithTimeout } from '../utils/http';
+import { fetchJsonWithTimeout } from '../utils/http';
 import { ApiHttpError } from '../utils/response';
 import { toNonNegativeInt } from '../utils/validation';
 
@@ -56,7 +56,7 @@ ${reviewLines}
 - 銀座 久兵衛 本店: Google 4.4 / 食べログ 3.71
 `.trim();
 
-  const response = await fetchWithTimeout(
+  const result = await fetchJsonWithTimeout<OpenRouterResponse>(
     'https://openrouter.ai/api/v1/chat/completions',
     {
       method: 'POST',
@@ -98,11 +98,15 @@ ${reviewLines}
     },
   );
 
-  if (!response.ok) {
+  if (!result.response.ok) {
     throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルが利用できません。');
   }
 
-  const payload = (await response.json()) as OpenRouterResponse;
+  const payload = result.json;
+  if (!payload) {
+    throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデル応答の解析に失敗しました。');
+  }
+
   const firstChoice = payload.choices?.[0];
   const content = extractMessageContent(firstChoice?.message?.content);
 
