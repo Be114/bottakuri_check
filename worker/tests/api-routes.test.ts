@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import worker from '../src/index';
+import { AnalysisReport } from '../src/types';
+import { buildCacheKey } from '../src/utils/hash';
 import { formatDayInTimeZone, resolveDayRolloverTimezone } from '../src/utils/time';
 import { createMockEnv } from './helpers/mockEnv';
 
@@ -68,6 +70,47 @@ describe('worker API routes', () => {
     expect(payload.error.requestId).toBeTypeOf('string');
   });
 
+  it('POST /api/analyze returns cached analysis without spending new-analysis budget', async () => {
+    const { env, kv } = createMockEnv({
+      DAILY_BUDGET_USD: '1',
+      WORST_CASE_COST_USD: '1',
+    });
+    const cachedReport = buildCachedReport();
+    kv.seed(await buildCacheKey('新宿', undefined), JSON.stringify(cachedReport));
+
+    const request = new Request('https://example.com/api/analyze', {
+      method: 'POST',
+      headers: {
+        Origin: 'http://localhost:3000',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query: '新宿' }),
+    });
+
+    const response = await worker.fetch(request, env);
+    const payload = (await response.json()) as AnalysisReport;
+    const day = formatDayInTimeZone(new Date(), resolveDayRolloverTimezone(env.DAY_ROLLOVER_TIMEZONE));
+    const healthResponse = await worker.fetch(
+      new Request('https://example.com/api/health', {
+        method: 'GET',
+        headers: { Origin: 'http://localhost:3000' },
+      }),
+      env,
+    );
+    const healthPayload = (await healthResponse.json()) as {
+      metrics: { cacheHits: number; newAnalysisCount: number };
+      dayRolloverTimezone: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(payload.placeName).toBe(cachedReport.placeName);
+    expect(payload.meta.cached).toBe(true);
+    expect(payload.meta.budgetState).toBe('ok');
+    expect(day).toBeTypeOf('string');
+    expect(healthPayload.metrics.cacheHits).toBe(1);
+    expect(healthPayload.metrics.newAnalysisCount).toBe(0);
+  });
+
   it('POST /api/analyze returns BUDGET_EXCEEDED when daily budget slots are exhausted', async () => {
     const { env, counters } = createMockEnv({
       DAILY_BUDGET_USD: '1',
@@ -94,3 +137,31 @@ describe('worker API routes', () => {
     expect(payload.error.requestId).toBeTypeOf('string');
   });
 });
+
+function buildCachedReport(): AnalysisReport {
+  return {
+    placeName: 'キャッシュ店舗',
+    address: '東京都新宿区',
+    sakuraScore: 20,
+    estimatedRealRating: 3.8,
+    googleRating: 3.9,
+    verdict: '安全',
+    risks: [{ category: '総合', riskLevel: 'low', description: '目立ったリスクはありません。' }],
+    suspiciousKeywordsFound: [],
+    summary: 'キャッシュ済みの分析結果です。',
+    reviewDistribution: [
+      { star: 1, percentage: 5 },
+      { star: 2, percentage: 10 },
+      { star: 3, percentage: 20 },
+      { star: 4, percentage: 35 },
+      { star: 5, percentage: 30 },
+    ],
+    groundingUrls: [{ title: 'Google Maps', uri: 'https://www.google.com/maps/place/?q=place_id:place-id' }],
+    meta: {
+      cached: false,
+      model: 'google/gemini-3-flash-preview',
+      generatedAt: '2026-01-01T00:00:00.000Z',
+      budgetState: 'ok',
+    },
+  };
+}

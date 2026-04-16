@@ -15,6 +15,7 @@ REVIEW_SAMPLE_LIMIT = "8"
 DAY_ROLLOVER_TIMEZONE = "Asia/Tokyo"
 OPENROUTER_SITE_URL = "https://bottakurichecker.uk"
 OPENROUTER_APP_NAME = "飲食店サクラチェッカー"
+# Empty string uses the built-in default chain-store keyword list.
 CHAIN_STORE_KEYWORDS = ""
 
 [[kv_namespaces]]

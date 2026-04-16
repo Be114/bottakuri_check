@@ -7,6 +7,7 @@ import {
   PlaceData,
   Env,
 } from '../types';
+import { fetchJsonWithTimeout } from '../utils/http';
 import { ApiHttpError } from '../utils/response';
 import { toNonNegativeInt } from '../utils/validation';
 
@@ -55,7 +56,7 @@ ${reviewLines}
 - 銀座 久兵衛 本店: Google 4.4 / 食べログ 3.71
 `.trim();
 
-  const response = await fetchWithTimeout(
+  const result = await fetchJsonWithTimeout<OpenRouterResponse>(
     'https://openrouter.ai/api/v1/chat/completions',
     {
       method: 'POST',
@@ -90,14 +91,22 @@ ${reviewLines}
         ],
       }),
     },
-    OPENROUTER_API_TIMEOUT_MS,
+    {
+      timeoutMs: OPENROUTER_API_TIMEOUT_MS,
+      onTimeout: () => new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルの応答がタイムアウトしました。'),
+      onError: () => new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルが利用できません。'),
+    },
   );
 
-  if (!response.ok) {
+  if (!result.response.ok) {
     throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルが利用できません。');
   }
 
-  const payload = (await response.json()) as OpenRouterResponse;
+  const payload = result.json;
+  if (!payload) {
+    throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデル応答の解析に失敗しました。');
+  }
+
   const firstChoice = payload.choices?.[0];
   const content = extractMessageContent(firstChoice?.message?.content);
 
@@ -173,25 +182,4 @@ export function hasDomainCitation(citations: GroundingUrl[], domain: string): bo
       return false;
     }
   });
-}
-
-async function fetchWithTimeout(input: string, init: RequestInit, timeoutMs: number): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
-    controller.abort();
-  }, timeoutMs);
-
-  try {
-    return await fetch(input, {
-      ...init,
-      signal: controller.signal,
-    });
-  } catch (error) {
-    if ((error as Error).name === 'AbortError') {
-      throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルの応答がタイムアウトしました。');
-    }
-    throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルが利用できません。');
-  } finally {
-    clearTimeout(timeoutId);
-  }
 }
