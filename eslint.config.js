@@ -1,9 +1,13 @@
 import js from '@eslint/js';
 import globals from 'globals';
+import path from 'node:path';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
+import { fileURLToPath } from 'node:url';
+
+const tsconfigRootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default [
   {
@@ -23,6 +27,10 @@ export default [
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
+      parserOptions: {
+        project: ['./tsconfig.eslint.json'],
+        tsconfigRootDir,
+      },
       globals: {
         ...globals.browser,
         ...globals.node,
@@ -43,7 +51,8 @@ export default [
       ...reactHooks.configs.recommended.rules,
       'no-undef': 'off',
       'no-unused-vars': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'react/prop-types': 'off',
       'react/react-in-jsx-scope': 'off',

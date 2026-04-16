@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "vite/client", "@cloudflare/workers-types"]
+  },
+  "include": [
+    "*.ts",
+    "*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "services/**/*.ts",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    "worker/*.ts",
+    "worker/src/**/*.ts",
+    "worker/tests/**/*.ts"
+  ],
+  "exclude": ["dist", "node_modules", "worker/node_modules"]
+}

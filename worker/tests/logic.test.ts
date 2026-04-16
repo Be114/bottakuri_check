@@ -1,13 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeAnalysis } from '../src/domain/normalization';
+import { isAnalysisReport, normalizeAnalysis } from '../src/domain/normalization';
 import { adjustRiskScoreByDiscrepancy, looksLikeChainStore, mapTabelogToGoogleEquivalent } from '../src/domain/scoring';
 import { PlaceData } from '../src/types';
-import { clampNumber, sanitizeQuery } from '../src/utils/validation';
+import { clampNumber, sanitizeLocation, sanitizeQuery } from '../src/utils/validation';
 
 describe('worker logic utilities', () => {
   it('sanitizeQuery removes control characters and normalizes whitespace', () => {
     expect(sanitizeQuery('  新宿\u0000  居酒屋\n\tA  ')).toBe('新宿 居酒屋 A');
+  });
+
+  it('sanitizeLocation accepts only finite coordinates in range', () => {
+    expect(sanitizeLocation({ lat: '35.6812', lng: '139.7671' })).toEqual({ lat: 35.6812, lng: 139.7671 });
+    expect(sanitizeLocation({ lat: 91, lng: 139.7671 })).toBeUndefined();
+    expect(sanitizeLocation({ lat: 35.6812, lng: -181 })).toBeUndefined();
+    expect(sanitizeLocation({ lat: Number.NaN, lng: 139.7671 })).toBeUndefined();
+    expect(sanitizeLocation(undefined)).toBeUndefined();
   });
 
   it('clampNumber returns bounded values', () => {
@@ -106,4 +114,76 @@ describe('worker logic utilities', () => {
     expect(normalized.suspiciousKeywordsFound).toEqual(['怪しい']);
     expect(normalized.reviewDistribution.reduce((sum, item) => sum + item.percentage, 0)).toBe(100);
   });
+
+  it('normalizeAnalysis normalizes malformed review distributions', () => {
+    const place = buildPlace();
+    const normalized = normalizeAnalysis(
+      {
+        placeName: '検証店舗',
+        address: '東京都新宿区',
+        sakuraScore: 35,
+        estimatedRealRating: 3.7,
+        verdict: '安全',
+        risks: [{ category: '分布', riskLevel: 'low', description: '分布を確認しました。' }],
+        summary: '分布を確認しました。',
+        reviewDistribution: [
+          { star: 1, percentage: 1 },
+          { star: 2, percentage: 1 },
+          { star: 3, percentage: 1 },
+          { star: 6, percentage: 80 },
+          { star: 4, percentage: -3 },
+        ],
+      },
+      place,
+      'google/gemini-3-flash-preview',
+      'ok',
+      false,
+      [],
+    );
+
+    expect(normalized.reviewDistribution).toHaveLength(5);
+    expect(normalized.reviewDistribution.map((item) => item.star)).toEqual([1, 2, 3, 4, 5]);
+    expect(normalized.reviewDistribution.reduce((sum, item) => sum + item.percentage, 0)).toBe(100);
+    expect(normalized.reviewDistribution.every((item) => item.percentage >= 0)).toBe(true);
+  });
+
+  it('isAnalysisReport accepts normalized reports and rejects incomplete records', () => {
+    const normalized = normalizeAnalysis(
+      {
+        placeName: '検証店舗',
+        address: '東京都新宿区',
+        sakuraScore: 25,
+        verdict: '安全',
+        risks: [{ category: '総合', riskLevel: 'low', description: '問題は見つかりませんでした。' }],
+        summary: '問題は見つかりませんでした。',
+        reviewDistribution: [
+          { star: 1, percentage: 5 },
+          { star: 2, percentage: 10 },
+          { star: 3, percentage: 20 },
+          { star: 4, percentage: 35 },
+          { star: 5, percentage: 30 },
+        ],
+      },
+      buildPlace(),
+      'google/gemini-3-flash-preview',
+      'ok',
+      false,
+      [],
+    );
+
+    expect(isAnalysisReport(normalized)).toBe(true);
+    expect(isAnalysisReport({ ...normalized, risks: null })).toBe(false);
+    expect(isAnalysisReport(null)).toBe(false);
+  });
 });
+
+function buildPlace(): PlaceData {
+  return {
+    placeId: 'place-id',
+    name: '検証店舗',
+    address: '東京都新宿区',
+    googleRating: 3.5,
+    userRatingCount: 120,
+    reviews: [],
+  };
+}

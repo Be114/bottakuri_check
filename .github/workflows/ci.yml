@@ -29,6 +29,18 @@ jobs:
       - name: Install worker dependencies
         run: npm --prefix worker ci
 
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Prepare worker wrangler config
+        run: |
+          cp worker/wrangler.toml.example worker/wrangler.toml
+          sed -i 's/REPLACE_WITH_KV_NAMESPACE_ID/00000000000000000000000000000000/' worker/wrangler.toml
+          sed -i 's/REPLACE_WITH_PREVIEW_KV_NAMESPACE_ID/11111111111111111111111111111111/' worker/wrangler.toml
+
       - name: Build frontend
         run: npm run build
 

@@ -1,5 +1,6 @@
 import { PLACES_API_TIMEOUT_MS } from '../constants';
 import { PlaceData, PlaceReview, Env } from '../types';
+import { fetchWithTimeout } from '../utils/http';
 import { ApiHttpError } from '../utils/response';
 import { clampNumber, toFiniteNumber } from '../utils/validation';
 
@@ -41,7 +42,10 @@ export async function fetchPlaceData(
         },
         body: JSON.stringify(searchBody),
       },
-      PLACES_API_TIMEOUT_MS,
+      {
+        timeoutMs: PLACES_API_TIMEOUT_MS,
+        onTimeout: () => new ApiHttpError('UPSTREAM_ERROR', 502, 'Google Places APIの応答がタイムアウトしました。'),
+      },
     );
   } catch (error) {
     if (error instanceof ApiHttpError) throw error;
@@ -82,7 +86,10 @@ export async function fetchPlaceData(
           'X-Goog-FieldMask': 'id,displayName,formattedAddress,rating,userRatingCount,reviews,location',
         },
       },
-      PLACES_API_TIMEOUT_MS,
+      {
+        timeoutMs: PLACES_API_TIMEOUT_MS,
+        onTimeout: () => new ApiHttpError('UPSTREAM_ERROR', 502, 'Google Places APIの応答がタイムアウトしました。'),
+      },
     );
   } catch (error) {
     if (error instanceof ApiHttpError) throw error;
@@ -147,25 +154,4 @@ function normalizePlaceLocation(
 function normalizeReviewText(text?: string): string {
   if (!text) return '';
   return text.replace(/\s+/g, ' ').trim().slice(0, 240);
-}
-
-async function fetchWithTimeout(input: string, init: RequestInit, timeoutMs: number): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
-    controller.abort();
-  }, timeoutMs);
-
-  try {
-    return await fetch(input, {
-      ...init,
-      signal: controller.signal,
-    });
-  } catch (error) {
-    if ((error as Error).name === 'AbortError') {
-      throw new ApiHttpError('UPSTREAM_ERROR', 502, 'Google Places APIの応答がタイムアウトしました。');
-    }
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
-  }
 }

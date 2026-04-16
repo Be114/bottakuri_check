@@ -7,6 +7,7 @@ import {
   PlaceData,
   Env,
 } from '../types';
+import { fetchWithTimeout } from '../utils/http';
 import { ApiHttpError } from '../utils/response';
 import { toNonNegativeInt } from '../utils/validation';
 
@@ -90,7 +91,11 @@ ${reviewLines}
         ],
       }),
     },
-    OPENROUTER_API_TIMEOUT_MS,
+    {
+      timeoutMs: OPENROUTER_API_TIMEOUT_MS,
+      onTimeout: () => new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルの応答がタイムアウトしました。'),
+      onError: () => new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルが利用できません。'),
+    },
   );
 
   if (!response.ok) {
@@ -173,25 +178,4 @@ export function hasDomainCitation(citations: GroundingUrl[], domain: string): bo
       return false;
     }
   });
-}
-
-async function fetchWithTimeout(input: string, init: RequestInit, timeoutMs: number): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
-    controller.abort();
-  }, timeoutMs);
-
-  try {
-    return await fetch(input, {
-      ...init,
-      signal: controller.signal,
-    });
-  } catch (error) {
-    if ((error as Error).name === 'AbortError') {
-      throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルの応答がタイムアウトしました。');
-    }
-    throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルが利用できません。');
-  } finally {
-    clearTimeout(timeoutId);
-  }
 }
