@@ -8,23 +8,23 @@ import {
   Env,
 } from '../types';
 import { ApiHttpError } from '../utils/response';
-import { toPositiveInt } from '../utils/validation';
+import { toNonNegativeInt } from '../utils/validation';
 
 export async function analyzeWithOpenRouter(
   query: string,
   place: PlaceData,
   modelId: string,
   env: Env,
-  reviewSampleLimit: number
+  reviewSampleLimit: number,
 ): Promise<{ report: Record<string, unknown>; citations: GroundingUrl[] }> {
-  const maxTokens = toPositiveInt(env.OPENROUTER_MAX_TOKENS, 1400);
+  const maxTokens = toNonNegativeInt(env.OPENROUTER_MAX_TOKENS, 1400);
 
   const reviewLines = place.reviews.length
     ? place.reviews
         .slice(0, reviewSampleLimit)
         .map(
           (review, index) =>
-            `${index + 1}. ★${review.rating} ${review.text}${review.publishTime ? ` (${review.publishTime})` : ''}`
+            `${index + 1}. ★${review.rating} ${review.text}${review.publishTime ? ` (${review.publishTime})` : ''}`,
         )
         .join('\n')
     : 'レビュー本文は取得できませんでした。';
@@ -90,7 +90,7 @@ ${reviewLines}
         ],
       }),
     },
-    OPENROUTER_API_TIMEOUT_MS
+    OPENROUTER_API_TIMEOUT_MS,
   );
 
   if (!response.ok) {

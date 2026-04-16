@@ -12,14 +12,9 @@ export async function hashIp(ip: string): Promise<string> {
   return hashString(ip);
 }
 
-export async function buildCacheKey(
-  query: string,
-  location?: { lat: number; lng: number }
-): Promise<string> {
+export async function buildCacheKey(query: string, location?: { lat: number; lng: number }): Promise<string> {
   const normalizedQuery = query.toLowerCase();
-  const roundedLocation = location
-    ? `${location.lat.toFixed(2)},${location.lng.toFixed(2)}`
-    : 'none';
+  const roundedLocation = location ? `${location.lat.toFixed(2)},${location.lng.toFixed(2)}` : 'none';
   return `cache:v1:${await hashString(`${normalizedQuery}|${roundedLocation}`)}`;
 }
 

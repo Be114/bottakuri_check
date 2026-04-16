@@ -1,7 +1,5 @@
 {
   "name": "飲食店サクラチェッカー",
   "description": "AIを使ってGoogleマップのクチコミを分析し、評価の乖離や怪しい投稿を検出して「サクラ」や「地雷店」のリスクを判定します。",
-  "requestFramePermissions": [
-    "geolocation"
-  ]
+  "requestFramePermissions": ["geolocation"]
 }

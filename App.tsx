@@ -53,10 +53,23 @@ function AnimatedSearchSVG() {
       <line x1="22" y1="20" x2="42" y2="20" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round" />
       <line x1="22" y1="28" x2="36" y2="28" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round" />
       <line x1="22" y1="36" x2="42" y2="36" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round" />
-      <motion.g animate={{ x: [0, 12, -6, 0], y: [0, 16, 8, 0] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}>
+      <motion.g
+        animate={{ x: [0, 12, -6, 0], y: [0, 16, 8, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+      >
         <circle cx="26" cy="26" r="12" stroke="url(#searchGrad)" strokeWidth="3" fill="rgba(255,255,255,0.9)" />
         <line x1="34" y1="34" x2="44" y2="44" stroke="url(#searchGrad)" strokeWidth="3" strokeLinecap="round" />
-        <motion.line x1="16" y1="20" x2="36" y2="20" stroke="#3B82F6" strokeWidth="1.5" opacity="0.6" animate={{ y: [0, 12, 0] }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} />
+        <motion.line
+          x1="16"
+          y1="20"
+          x2="36"
+          y2="20"
+          stroke="#3B82F6"
+          strokeWidth="1.5"
+          opacity="0.6"
+          animate={{ y: [0, 12, 0] }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+        />
       </motion.g>
     </svg>
   );
@@ -72,10 +85,33 @@ function AnimatedAISVG() {
         </linearGradient>
       </defs>
       <rect x="14" y="14" width="36" height="36" rx="8" stroke="url(#aiGrad)" strokeWidth="2" fill="white" />
-      <motion.rect x="24" y="24" width="16" height="16" rx="4" fill="url(#aiGrad)" opacity="0.1" animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} />
+      <motion.rect
+        x="24"
+        y="24"
+        width="16"
+        height="16"
+        rx="4"
+        fill="url(#aiGrad)"
+        opacity="0.1"
+        animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }}
+        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+      />
       <rect x="26" y="26" width="12" height="12" rx="3" fill="url(#aiGrad)" />
-      <motion.path d="M32 14 V6 M32 50 V58 M14 32 H6 M50 32 H58" stroke="url(#aiGrad)" strokeWidth="2" strokeLinecap="round" initial={{ opacity: 0.3 }} animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }} />
-      <path d="M22 14 V8 M42 14 V8 M22 50 V56 M42 50 V56 M14 22 H8 M14 42 H8 M50 22 H56 M50 42 H56" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round" />
+      <motion.path
+        d="M32 14 V6 M32 50 V58 M14 32 H6 M50 32 H58"
+        stroke="url(#aiGrad)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        initial={{ opacity: 0.3 }}
+        animate={{ opacity: [0.3, 1, 0.3] }}
+        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <path
+        d="M22 14 V8 M42 14 V8 M22 50 V56 M42 50 V56 M14 22 H8 M14 42 H8 M50 22 H56 M50 42 H56"
+        stroke="#CBD5E1"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -109,7 +145,14 @@ function AnimatedGaugeSVG() {
       />
       <circle cx="32" cy="46" r="5" fill="#334155" />
       <circle cx="32" cy="46" r="2" fill="white" />
-      <motion.circle cx="54" cy="20" r="4" fill="#EF4444" animate={{ scale: [1, 1.6, 1], opacity: [1, 0, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} />
+      <motion.circle
+        cx="54"
+        cy="20"
+        r="4"
+        fill="#EF4444"
+        animate={{ scale: [1, 1.6, 1], opacity: [1, 0, 1] }}
+        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+      />
     </svg>
   );
 }
@@ -117,9 +160,37 @@ function AnimatedGaugeSVG() {
 function CollectingDataSVG() {
   return (
     <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <motion.circle cx="60" cy="60" r="40" stroke="#E2E8F0" strokeWidth="2" strokeDasharray="4 4" animate={{ rotate: 360 }} transition={{ duration: 10, repeat: Infinity, ease: 'linear' }} style={{ transformOrigin: '60px 60px' }} />
-      <motion.circle cx="60" cy="60" r="25" stroke="#3B82F6" strokeWidth="3" strokeDasharray="40 40" animate={{ rotate: -360 }} transition={{ duration: 4, repeat: Infinity, ease: 'linear' }} style={{ transformOrigin: '60px 60px' }} />
-      <motion.path d="M60 45 L60 75 M45 60 L75 60" stroke="#8B5CF6" strokeWidth="3" strokeLinecap="round" animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }} style={{ transformOrigin: '60px 60px' }} />
+      <motion.circle
+        cx="60"
+        cy="60"
+        r="40"
+        stroke="#E2E8F0"
+        strokeWidth="2"
+        strokeDasharray="4 4"
+        animate={{ rotate: 360 }}
+        transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+        style={{ transformOrigin: '60px 60px' }}
+      />
+      <motion.circle
+        cx="60"
+        cy="60"
+        r="25"
+        stroke="#3B82F6"
+        strokeWidth="3"
+        strokeDasharray="40 40"
+        animate={{ rotate: -360 }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+        style={{ transformOrigin: '60px 60px' }}
+      />
+      <motion.path
+        d="M60 45 L60 75 M45 60 L75 60"
+        stroke="#8B5CF6"
+        strokeWidth="3"
+        strokeLinecap="round"
+        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        style={{ transformOrigin: '60px 60px' }}
+      />
       {[0, 1, 2, 3].map((item) => (
         <motion.circle
           key={item}
@@ -140,11 +211,59 @@ function AnalyzingDataSVG() {
   return (
     <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="30" y="30" width="60" height="60" rx="12" stroke="#8B5CF6" strokeWidth="3" fill="none" />
-      <motion.rect x="30" y="30" width="60" height="60" rx="12" stroke="#3B82F6" strokeWidth="3" fill="none" animate={{ scale: [1, 1.1, 1], opacity: [1, 0, 1] }} transition={{ duration: 2, repeat: Infinity }} style={{ transformOrigin: '60px 60px' }} />
-      <motion.line x1="30" y1="30" x2="90" y2="30" stroke="#3B82F6" strokeWidth="2" animate={{ y: [0, 60, 0] }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} />
-      <motion.rect x="40" y="45" width="15" height="10" rx="2" fill="#E2E8F0" animate={{ fill: ['#E2E8F0', '#8B5CF6', '#E2E8F0'] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0 }} />
-      <motion.rect x="65" y="45" width="15" height="10" rx="2" fill="#E2E8F0" animate={{ fill: ['#E2E8F0', '#3B82F6', '#E2E8F0'] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }} />
-      <motion.rect x="40" y="65" width="25" height="10" rx="2" fill="#E2E8F0" animate={{ fill: ['#E2E8F0', '#10B981', '#E2E8F0'] }} transition={{ duration: 1.5, repeat: Infinity, delay: 1 }} />
+      <motion.rect
+        x="30"
+        y="30"
+        width="60"
+        height="60"
+        rx="12"
+        stroke="#3B82F6"
+        strokeWidth="3"
+        fill="none"
+        animate={{ scale: [1, 1.1, 1], opacity: [1, 0, 1] }}
+        transition={{ duration: 2, repeat: Infinity }}
+        style={{ transformOrigin: '60px 60px' }}
+      />
+      <motion.line
+        x1="30"
+        y1="30"
+        x2="90"
+        y2="30"
+        stroke="#3B82F6"
+        strokeWidth="2"
+        animate={{ y: [0, 60, 0] }}
+        transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+      />
+      <motion.rect
+        x="40"
+        y="45"
+        width="15"
+        height="10"
+        rx="2"
+        fill="#E2E8F0"
+        animate={{ fill: ['#E2E8F0', '#8B5CF6', '#E2E8F0'] }}
+        transition={{ duration: 1.5, repeat: Infinity, delay: 0 }}
+      />
+      <motion.rect
+        x="65"
+        y="45"
+        width="15"
+        height="10"
+        rx="2"
+        fill="#E2E8F0"
+        animate={{ fill: ['#E2E8F0', '#3B82F6', '#E2E8F0'] }}
+        transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
+      />
+      <motion.rect
+        x="40"
+        y="65"
+        width="25"
+        height="10"
+        rx="2"
+        fill="#E2E8F0"
+        animate={{ fill: ['#E2E8F0', '#10B981', '#E2E8F0'] }}
+        transition={{ duration: 1.5, repeat: Infinity, delay: 1 }}
+      />
     </svg>
   );
 }
@@ -170,7 +289,7 @@ function App() {
       },
       (error) => {
         console.log('Location access denied or failed', error);
-      }
+      },
     );
   }, []);
 
@@ -189,19 +308,8 @@ function App() {
     setSearchState({
       isLoading: true,
       step: 'searching',
-      message: 'お店の情報を収集中...',
+      message: 'お店の情報を分析しています...',
     });
-
-    const progressTimer = window.setTimeout(() => {
-      setSearchState((prev) => {
-        if (!prev.isLoading || prev.step !== 'searching') return prev;
-        return {
-          ...prev,
-          step: 'analyzing',
-          message: 'AIがクチコミを分析しています...',
-        };
-      });
-    }, 1200);
 
     try {
       const finalResult = await analyzePlace({
@@ -223,8 +331,6 @@ function App() {
         message: errorState.message,
         errorCode: errorState.code,
       });
-    } finally {
-      window.clearTimeout(progressTimer);
     }
   };
 
@@ -233,16 +339,18 @@ function App() {
     setQuery('');
   };
 
-  const loadingCopy =
-    searchState.step === 'analyzing'
-      ? 'AIが不自然なパターンやサクラ投稿の兆候を解析中'
-      : 'Googleマップや各グルメサイトから最新のクチコミを取得中';
+  const loadingCopy = 'Googleマップ情報の取得とAI分析を実行中です。完了までこのままお待ちください。';
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 selection:bg-blue-200 flex flex-col">
       <header className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <button type="button" className="flex items-center gap-2 text-left" onClick={resetSearch} disabled={searchState.isLoading}>
+          <button
+            type="button"
+            className="flex items-center gap-2 text-left"
+            onClick={resetSearch}
+            disabled={searchState.isLoading}
+          >
             <ShieldAlert className="w-6 h-6 text-blue-600" />
             <span className="font-bold text-lg tracking-tight">飲食店サクラチェッカー</span>
           </button>
@@ -288,7 +396,11 @@ function App() {
                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium transition-colors flex items-center gap-2 disabled:bg-slate-300 disabled:cursor-not-allowed"
                     disabled={searchState.isLoading || !query.trim()}
                   >
-                    {searchState.isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                    {searchState.isLoading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Search className="w-5 h-5" />
+                    )}
                     <span className="hidden sm:inline">分析する</span>
                   </button>
                 </div>
@@ -302,7 +414,10 @@ function App() {
 
               <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
                 {FEATURES.map((feature) => (
-                  <div key={feature.title} className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 text-center">
+                  <div
+                    key={feature.title}
+                    className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 text-center"
+                  >
                     <div className="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-slate-100">
                       {feature.svg}
                     </div>

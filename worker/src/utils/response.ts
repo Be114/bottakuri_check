@@ -28,7 +28,7 @@ export function buildErrorResponse(
   status: number,
   message: string,
   allowedOrigin: string | null,
-  requestId?: string
+  requestId?: string,
 ): Response {
   return buildJsonResponse(
     {
@@ -40,14 +40,22 @@ export function buildErrorResponse(
     },
     status,
     allowedOrigin,
-    requestId
+    requestId,
   );
 }
 
-export function buildJsonResponse(body: unknown, status: number, allowedOrigin: string | null, requestId?: string): Response {
+export function buildJsonResponse(
+  body: unknown,
+  status: number,
+  allowedOrigin: string | null,
+  requestId?: string,
+): Response {
   const headers = new Headers({
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
+    'Content-Security-Policy': "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
   });
 
   if (allowedOrigin) {
@@ -76,7 +84,10 @@ export function buildCorsHeaders(origin: string): Headers {
 
 export function resolveAllowedOrigin(origin: string | null, allowedOriginsRaw: string | undefined): string | null {
   if (!origin) return null;
-  const allowedOrigins = (allowedOriginsRaw || '').split(',').map((item) => item.trim()).filter(Boolean);
+  const allowedOrigins = (allowedOriginsRaw || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
   if (allowedOrigins.includes('*')) return origin;
   if (allowedOrigins.includes(origin)) return origin;
   return null;

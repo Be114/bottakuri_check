@@ -13,7 +13,7 @@ import { AnalysisReport, AnalyzeRequest, Env } from '../types';
 import { buildCacheKey, hashIp, readClientIp } from '../utils/hash';
 import { ApiHttpError } from '../utils/response';
 import { formatDayInTimeZone, formatUtcMinute, resolveDayRolloverTimezone } from '../utils/time';
-import { resolveReviewSampleLimit, sanitizeLocation, sanitizeQuery, toPositiveInt } from '../utils/validation';
+import { resolveReviewSampleLimit, sanitizeLocation, sanitizeQuery, toNonNegativeInt } from '../utils/validation';
 
 export async function handleAnalyze(request: Request, env: Env): Promise<AnalysisReport> {
   const payload = (await request.json().catch(() => ({}))) as AnalyzeRequest;
@@ -33,7 +33,7 @@ export async function handleAnalyze(request: Request, env: Env): Promise<Analysi
 
   await incrementMetric(env, metricKey('requests', dayKey));
 
-  const perMinuteLimit = toPositiveInt(env.PER_MINUTE_LIMIT, 5);
+  const perMinuteLimit = toNonNegativeInt(env.PER_MINUTE_LIMIT, 5);
   const minuteRateKey = `rate:minute:${ipHash}:${minuteBucket}`;
   const minuteAllowed = await allowWithinLimit(env, minuteRateKey, perMinuteLimit, 120);
   if (!minuteAllowed) {
@@ -41,7 +41,7 @@ export async function handleAnalyze(request: Request, env: Env): Promise<Analysi
     throw new ApiHttpError('RATE_LIMIT', 429, 'アクセスが集中しています。少し時間をおいて再度お試しください。');
   }
 
-  const cacheTtl = toPositiveInt(env.CACHE_TTL_SECONDS, ONE_DAY_SECONDS);
+  const cacheTtl = toNonNegativeInt(env.CACHE_TTL_SECONDS, ONE_DAY_SECONDS);
   const cacheKey = await buildCacheKey(query, location);
   const cached = await env.APP_KV.get(cacheKey, 'json');
   if (isAnalysisReport(cached)) {
@@ -57,7 +57,7 @@ export async function handleAnalyze(request: Request, env: Env): Promise<Analysi
     return cachedResult;
   }
 
-  const perDayNewAnalysisLimit = toPositiveInt(env.PER_DAY_NEW_ANALYSIS_LIMIT, 20);
+  const perDayNewAnalysisLimit = toNonNegativeInt(env.PER_DAY_NEW_ANALYSIS_LIMIT, 20);
   const dayRateKey = `rate:day:${ipHash}:${dayKey}`;
   const dayAllowed = await allowWithinLimit(env, dayRateKey, perDayNewAnalysisLimit, ONE_DAY_SECONDS * 2);
   if (!dayAllowed) {
@@ -83,7 +83,8 @@ export async function handleAnalyze(request: Request, env: Env): Promise<Analysi
     modelId,
     'ok',
     false,
-    openRouterResult.citations
+    openRouterResult.citations,
+    env.CHAIN_STORE_KEYWORDS,
   );
 
   await env.APP_KV.put(cacheKey, JSON.stringify(normalized), { expirationTtl: cacheTtl });

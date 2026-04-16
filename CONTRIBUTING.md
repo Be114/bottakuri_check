@@ -29,6 +29,8 @@ Run all checks before opening a PR:
 ```bash
 npm run build
 npm --prefix worker run build
+npm run lint
+npm run format:check
 npm run typecheck
 npm run typecheck:worker
 npm run test
@@ -37,6 +39,7 @@ npm run test
 ## Testing policy
 
 - Add tests for all Worker behavior changes.
+- Add or update lint/format coverage when introducing new source files.
 - Preserve API compatibility unless a breaking change is explicitly approved.
 - Prefer unit tests for deterministic logic and route tests for API behavior.
 

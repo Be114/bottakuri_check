@@ -20,12 +20,7 @@ export interface AnalysisMeta {
   budgetState: BudgetState;
 }
 
-export type ApiErrorCode =
-  | 'INVALID_QUERY'
-  | 'RATE_LIMIT'
-  | 'BUDGET_EXCEEDED'
-  | 'MODEL_UNAVAILABLE'
-  | 'UPSTREAM_ERROR';
+export type ApiErrorCode = 'INVALID_QUERY' | 'RATE_LIMIT' | 'BUDGET_EXCEEDED' | 'MODEL_UNAVAILABLE' | 'UPSTREAM_ERROR';
 
 export interface ApiError {
   code: ApiErrorCode;

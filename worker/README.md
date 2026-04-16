@@ -19,7 +19,14 @@ npx wrangler kv:namespace create APP_KV
 npx wrangler kv:namespace create APP_KV --preview
 ```
 
-作成された `id` / `preview_id` を `worker/wrangler.toml` に設定します。
+`worker/wrangler.toml.example` を `worker/wrangler.toml` にコピーし、作成された `id` / `preview_id` を設定します。
+`wrangler.toml` はローカル設定ファイルとしてgit管理しません。
+
+```bash
+cp wrangler.toml.example wrangler.toml
+```
+
+`COUNTERS` Durable Object binding と `AtomicCounter` migration はexampleに含まれています。
 
 3. シークレットを設定
 
@@ -47,3 +54,9 @@ npm run dev
 - `OPENROUTER_MAX_TOKENS`: 応答トークン上限
 - `REVIEW_SAMPLE_LIMIT`: Placesレビューの参照件数（推奨: 8）
 - `DAY_ROLLOVER_TIMEZONE`: 日次制限の切替タイムゾーン（例: `Asia/Tokyo`）
+- `CHAIN_STORE_KEYWORDS`: チェーン店判定キーワード（任意、カンマ区切り）
+
+## 状態管理
+
+- `APP_KV`: 分析結果キャッシュのみで使用します。
+- `COUNTERS`: Durable Objectsでレート制限、予算制限、メトリクスを原子的に更新します。

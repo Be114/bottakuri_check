@@ -1,15 +1,15 @@
 import { DEFAULT_REVIEW_SAMPLE_LIMIT, MAX_REVIEW_SAMPLE_LIMIT, MIN_REVIEW_SAMPLE_LIMIT } from '../constants';
 import { AnalyzeRequest } from '../types';
 
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARACTERS = /[\u0000-\u001F\u007F]/g;
+
 export function sanitizeQuery(rawQuery: unknown): string {
   if (typeof rawQuery !== 'string') return '';
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional sanitization for control characters
-  return rawQuery.replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim();
+  return rawQuery.replace(CONTROL_CHARACTERS, ' ').replace(/\s+/g, ' ').trim();
 }
 
-export function sanitizeLocation(
-  rawLocation: AnalyzeRequest['location']
-): { lat: number; lng: number } | undefined {
+export function sanitizeLocation(rawLocation: AnalyzeRequest['location']): { lat: number; lng: number } | undefined {
   if (!rawLocation || typeof rawLocation !== 'object') return undefined;
   const lat = toFiniteNumber(rawLocation.lat);
   const lng = toFiniteNumber(rawLocation.lng);
@@ -18,14 +18,19 @@ export function sanitizeLocation(
   return { lat, lng };
 }
 
-export function toPositiveInt(rawValue: string | null | undefined, fallback: number): number {
+export function toNonNegativeInt(rawValue: string | null | undefined, fallback: number): number {
   // Returns a non-negative integer (0 is valid).
   const parsed = Number(rawValue);
   if (!Number.isFinite(parsed) || parsed < 0) return fallback;
   return Math.floor(parsed);
 }
 
-export function toBoundedInt(rawValue: string | null | undefined, fallback: number, min: number, max: number): number {
+export function toIntegerInRange(
+  rawValue: string | null | undefined,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
   const parsed = Number(rawValue);
   if (!Number.isFinite(parsed)) return fallback;
   return clampNumber(Math.floor(parsed), min, max);
@@ -45,5 +50,5 @@ export function clampNumber(value: number, min: number, max: number): number {
 }
 
 export function resolveReviewSampleLimit(rawValue: string | undefined): number {
-  return toBoundedInt(rawValue, DEFAULT_REVIEW_SAMPLE_LIMIT, MIN_REVIEW_SAMPLE_LIMIT, MAX_REVIEW_SAMPLE_LIMIT);
+  return toIntegerInRange(rawValue, DEFAULT_REVIEW_SAMPLE_LIMIT, MIN_REVIEW_SAMPLE_LIMIT, MAX_REVIEW_SAMPLE_LIMIT);
 }

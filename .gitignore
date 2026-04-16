@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 worker/.dev.vars
+worker/wrangler.toml
 worker/.wrangler
 
 # Editor directories and files

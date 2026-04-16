@@ -7,7 +7,7 @@ export async function fetchPlaceData(
   query: string,
   location: { lat: number; lng: number } | undefined,
   env: Env,
-  reviewSampleLimit: number
+  reviewSampleLimit: number,
 ): Promise<PlaceData> {
   const searchBody: Record<string, unknown> = {
     textQuery: query,
@@ -41,7 +41,7 @@ export async function fetchPlaceData(
         },
         body: JSON.stringify(searchBody),
       },
-      PLACES_API_TIMEOUT_MS
+      PLACES_API_TIMEOUT_MS,
     );
   } catch (error) {
     if (error instanceof ApiHttpError) throw error;
@@ -79,11 +79,10 @@ export async function fetchPlaceData(
       {
         headers: {
           'X-Goog-Api-Key': env.GOOGLE_PLACES_API_KEY,
-          'X-Goog-FieldMask':
-            'id,displayName,formattedAddress,rating,userRatingCount,reviews,location',
+          'X-Goog-FieldMask': 'id,displayName,formattedAddress,rating,userRatingCount,reviews,location',
         },
       },
-      PLACES_API_TIMEOUT_MS
+      PLACES_API_TIMEOUT_MS,
     );
   } catch (error) {
     if (error instanceof ApiHttpError) throw error;
@@ -111,26 +110,24 @@ export async function fetchPlaceData(
 
   const reviews = (detailsJson.reviews || [])
     .slice(0, reviewSampleLimit)
-    .map((review): PlaceReview => ({
-      rating: clampNumber(toFiniteNumber(review.rating) ?? 0, 0, 5),
-      text: normalizeReviewText(review.text?.text),
-      authorName: review.authorAttribution?.displayName,
-      publishTime: review.publishTime,
-    }))
+    .map(
+      (review): PlaceReview => ({
+        rating: clampNumber(toFiniteNumber(review.rating) ?? 0, 0, 5),
+        text: normalizeReviewText(review.text?.text),
+        authorName: review.authorAttribution?.displayName,
+        publishTime: review.publishTime,
+      }),
+    )
     .filter((review) => review.text.length > 0);
 
   return {
     placeId,
     name: detailsJson.displayName?.text || candidate.displayName?.text || query,
     address: detailsJson.formattedAddress || candidate.formattedAddress || '住所不明',
-    googleRating: clampNumber(
-      toFiniteNumber(detailsJson.rating) ?? toFiniteNumber(candidate.rating) ?? 0,
-      0,
-      5
-    ),
+    googleRating: clampNumber(toFiniteNumber(detailsJson.rating) ?? toFiniteNumber(candidate.rating) ?? 0, 0, 5),
     userRatingCount: Math.max(
       0,
-      Math.round(toFiniteNumber(detailsJson.userRatingCount) ?? toFiniteNumber(candidate.userRatingCount) ?? 0)
+      Math.round(toFiniteNumber(detailsJson.userRatingCount) ?? toFiniteNumber(candidate.userRatingCount) ?? 0),
     ),
     reviews,
     location: normalizePlaceLocation(detailsJson.location, candidate.location),
@@ -139,7 +136,7 @@ export async function fetchPlaceData(
 
 function normalizePlaceLocation(
   primary?: { latitude?: number; longitude?: number },
-  fallback?: { latitude?: number; longitude?: number }
+  fallback?: { latitude?: number; longitude?: number },
 ): { lat: number; lng: number } | undefined {
   const lat = toFiniteNumber(primary?.latitude) ?? toFiniteNumber(fallback?.latitude);
   const lng = toFiniteNumber(primary?.longitude) ?? toFiniteNumber(fallback?.longitude);

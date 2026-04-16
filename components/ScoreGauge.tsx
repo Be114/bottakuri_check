@@ -32,8 +32,7 @@ const ScoreGauge = ({ score, verdict }: ScoreGaugeProps) => {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (displayScore / 100) * circumference;
 
-  const colorClass =
-    displayScore >= 70 ? 'text-red-600' : displayScore >= 40 ? 'text-amber-500' : 'text-emerald-500';
+  const colorClass = displayScore >= 70 ? 'text-red-600' : displayScore >= 40 ? 'text-amber-500' : 'text-emerald-500';
   const badgeClass =
     displayScore >= 70
       ? 'text-red-700 bg-red-50'

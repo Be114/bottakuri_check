@@ -122,7 +122,9 @@ const AnalysisDashboard: FC<AnalysisDashboardProps> = ({ data, onReset }) => {
             </div>
           </div>
 
-          <div className={`${isSuspiciousDiff ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'} border rounded-xl p-4 flex items-start gap-3`}>
+          <div
+            className={`${isSuspiciousDiff ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'} border rounded-xl p-4 flex items-start gap-3`}
+          >
             {isSuspiciousDiff ? (
               <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
             ) : (
@@ -202,7 +204,10 @@ const AnalysisDashboard: FC<AnalysisDashboardProps> = ({ data, onReset }) => {
             {data.suspiciousKeywordsFound.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {data.suspiciousKeywordsFound.map((word, index) => (
-                  <span key={`${word}-${index}`} className="px-3 py-1 bg-red-50 text-red-700 text-xs rounded-full border border-red-100">
+                  <span
+                    key={`${word}-${index}`}
+                    className="px-3 py-1 bg-red-50 text-red-700 text-xs rounded-full border border-red-100"
+                  >
                     {word}
                   </span>
                 ))}

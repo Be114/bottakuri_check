@@ -1,6 +1,12 @@
 import { AnalysisReport, AnalysisRisk, BudgetState, GroundingUrl, PlaceData, ReviewDistribution } from '../types';
 import { hasDomainCitation } from '../services/openrouter';
-import { adjustRiskScoreByDiscrepancy, deriveVerdict, inferScoreFromText, mapTabelogToGoogleEquivalent, verdictToMinScore } from './scoring';
+import {
+  adjustRiskScoreByDiscrepancy,
+  deriveVerdict,
+  inferScoreFromText,
+  mapTabelogToGoogleEquivalent,
+  verdictToMinScore,
+} from './scoring';
 import { clampNumber, toFiniteNumber } from '../utils/validation';
 
 export function normalizeAnalysis(
@@ -9,12 +15,13 @@ export function normalizeAnalysis(
   model: string,
   budgetState: BudgetState,
   cached: boolean,
-  citations: GroundingUrl[]
+  citations: GroundingUrl[],
+  chainStoreKeywordsRaw?: string,
 ): AnalysisReport {
   const rawSakuraScore = clampNumber(
     Math.round(toFiniteNumber(report.sakuraScore) ?? inferScoreFromText(String(report.summary || ''))),
     0,
-    100
+    100,
   );
 
   const rawVerdict = typeof report.verdict === 'string' ? report.verdict : '';
@@ -32,10 +39,16 @@ export function normalizeAnalysis(
         ? modelEstimated
         : clampNumber(place.googleRating - rawSakuraScore / 100, 1, 5),
     1,
-    5
+    5,
   );
 
-  const sakuraScore = adjustRiskScoreByDiscrepancy(rawSakuraScore, place.googleRating, estimatedRealRating, place.name);
+  const sakuraScore = adjustRiskScoreByDiscrepancy(
+    rawSakuraScore,
+    place.googleRating,
+    estimatedRealRating,
+    place.name,
+    chainStoreKeywordsRaw,
+  );
   const verdict: '安全' | '注意' | '危険' =
     rawVerdict === '安全' || rawVerdict === '注意' || rawVerdict === '危険'
       ? deriveVerdict(Math.max(sakuraScore, verdictToMinScore(rawVerdict)))

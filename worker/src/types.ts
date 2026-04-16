@@ -1,5 +1,6 @@
 export interface Env {
   APP_KV: KVNamespace;
+  COUNTERS: DurableObjectNamespace;
   OPENROUTER_API_KEY: string;
   GOOGLE_PLACES_API_KEY: string;
   OPENROUTER_SITE_URL?: string;
@@ -13,14 +14,10 @@ export interface Env {
   OPENROUTER_MAX_TOKENS?: string;
   REVIEW_SAMPLE_LIMIT?: string;
   DAY_ROLLOVER_TIMEZONE?: string;
+  CHAIN_STORE_KEYWORDS?: string;
 }
 
-export type ErrorCode =
-  | 'INVALID_QUERY'
-  | 'RATE_LIMIT'
-  | 'BUDGET_EXCEEDED'
-  | 'MODEL_UNAVAILABLE'
-  | 'UPSTREAM_ERROR';
+export type ErrorCode = 'INVALID_QUERY' | 'RATE_LIMIT' | 'BUDGET_EXCEEDED' | 'MODEL_UNAVAILABLE' | 'UPSTREAM_ERROR';
 
 export type BudgetState = 'ok' | 'capped';
 

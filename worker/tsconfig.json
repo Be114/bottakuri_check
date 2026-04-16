@@ -4,17 +4,10 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
-    "types": [
-      "@cloudflare/workers-types"
-    ],
-    "lib": [
-      "ES2022",
-      "WebWorker"
-    ],
+    "types": ["@cloudflare/workers-types"],
+    "lib": ["ES2022", "WebWorker"],
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": [
-    "src/**/*.ts"
-  ]
+  "include": ["src/**/*.ts"]
 }

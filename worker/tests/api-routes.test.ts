@@ -25,6 +25,8 @@ describe('worker API routes', () => {
     expect(payload.metrics.cacheHitRate).toBeTypeOf('number');
     expect(payload.metrics.errorCount).toBe(0);
     expect(response.headers.get('x-request-id')).toBeTypeOf('string');
+    expect(response.headers.get('content-security-policy')).toContain("default-src 'none'");
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
   });
 
   it('POST /api/analyze returns INVALID_QUERY for too-short query', async () => {
@@ -67,13 +69,13 @@ describe('worker API routes', () => {
   });
 
   it('POST /api/analyze returns BUDGET_EXCEEDED when daily budget slots are exhausted', async () => {
-    const { env, kv } = createMockEnv({
+    const { env, counters } = createMockEnv({
       DAILY_BUDGET_USD: '1',
       WORST_CASE_COST_USD: '1',
     });
 
     const day = formatDayInTimeZone(new Date(), resolveDayRolloverTimezone(env.DAY_ROLLOVER_TIMEZONE));
-    kv.seed(`budget:new:${day}`, '1');
+    await counters.seed(`budget:new:${day}`, 1);
 
     const request = new Request('https://example.com/api/analyze', {
       method: 'POST',

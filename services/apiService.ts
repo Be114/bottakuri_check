@@ -48,9 +48,7 @@ function normalizeReport(payload: Partial<AnalysisReport>): AnalysisReport {
     tabelogRating: payload.tabelogRating,
     verdict: payload.verdict || '注意',
     risks: Array.isArray(payload.risks) ? payload.risks : [],
-    suspiciousKeywordsFound: Array.isArray(payload.suspiciousKeywordsFound)
-      ? payload.suspiciousKeywordsFound
-      : [],
+    suspiciousKeywordsFound: Array.isArray(payload.suspiciousKeywordsFound) ? payload.suspiciousKeywordsFound : [],
     summary: payload.summary || '分析結果の要約を取得できませんでした。',
     reviewDistribution: Array.isArray(payload.reviewDistribution) ? payload.reviewDistribution : [],
     groundingUrls: Array.isArray(payload.groundingUrls) ? payload.groundingUrls : [],

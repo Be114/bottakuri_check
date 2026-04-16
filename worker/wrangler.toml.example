@@ -15,8 +15,17 @@ REVIEW_SAMPLE_LIMIT = "8"
 DAY_ROLLOVER_TIMEZONE = "Asia/Tokyo"
 OPENROUTER_SITE_URL = "https://bottakurichecker.uk"
 OPENROUTER_APP_NAME = "飲食店サクラチェッカー"
+CHAIN_STORE_KEYWORDS = ""
 
 [[kv_namespaces]]
 binding = "APP_KV"
-id = "dc71d387248a45b99af8ba0a2a491e8b"
-preview_id = "7a316326817e4dd6ad20503172d859f4"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_PREVIEW_KV_NAMESPACE_ID"
+
+[[durable_objects.bindings]]
+name = "COUNTERS"
+class_name = "AtomicCounter"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["AtomicCounter"]

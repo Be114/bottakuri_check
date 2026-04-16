@@ -1,5 +1,20 @@
 import { clampNumber } from '../utils/validation';
 
+const DEFAULT_CHAIN_KEYWORDS = [
+  'サイゼリヤ',
+  '松屋',
+  'すき家',
+  'マクドナルド',
+  'スターバックス',
+  '鳥貴族',
+  '吉野家',
+  'ガスト',
+  'くら寿司',
+  'スシロー',
+  'はま寿司',
+  '一蘭',
+];
+
 export function mapTabelogToGoogleEquivalent(tabelogRating: number): number {
   const t = clampNumber(tabelogRating, 2.0, 4.2);
 
@@ -16,39 +31,33 @@ export function adjustRiskScoreByDiscrepancy(
   baseScore: number,
   googleRating: number,
   comparableRating: number,
-  placeName: string
+  placeName: string,
+  chainStoreKeywordsRaw?: string,
 ): number {
   const discrepancy = googleRating - comparableRating;
   if (discrepancy <= 0.4) return baseScore;
 
-  let penalty = discrepancy <= 0.8
-    ? (discrepancy - 0.4) * 35
-    : 14 + (discrepancy - 0.8) * 50;
+  let penalty = discrepancy <= 0.8 ? (discrepancy - 0.4) * 35 : 14 + (discrepancy - 0.8) * 50;
 
-  if (looksLikeChainStore(placeName)) {
+  if (looksLikeChainStore(placeName, chainStoreKeywordsRaw)) {
     penalty *= 0.6;
   }
 
   return clampNumber(Math.round(baseScore + penalty), 0, 100);
 }
 
-function looksLikeChainStore(placeName: string): boolean {
-  const chainKeywords = [
-    'サイゼリヤ',
-    '松屋',
-    'すき家',
-    'マクドナルド',
-    'スターバックス',
-    '鳥貴族',
-    '吉野家',
-    'ガスト',
-    'くら寿司',
-    'スシロー',
-    'はま寿司',
-    '一蘭',
-  ];
-
+export function looksLikeChainStore(placeName: string, chainStoreKeywordsRaw?: string): boolean {
+  const chainKeywords = resolveChainStoreKeywords(chainStoreKeywordsRaw);
   return chainKeywords.some((keyword) => placeName.includes(keyword));
+}
+
+export function resolveChainStoreKeywords(rawValue: string | undefined): string[] {
+  if (!rawValue) return DEFAULT_CHAIN_KEYWORDS;
+  const keywords = rawValue
+    .split(',')
+    .map((keyword) => keyword.trim())
+    .filter(Boolean);
+  return keywords.length > 0 ? keywords : DEFAULT_CHAIN_KEYWORDS;
 }
 
 export function verdictToMinScore(verdict: '安全' | '注意' | '危険'): number {

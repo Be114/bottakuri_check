@@ -1,5 +1,6 @@
 import { handleAnalyze } from './handlers/analyze';
 import { handleHealth } from './handlers/health';
+export { AtomicCounter } from './durableObjects/atomicCounter';
 import { incrementMetric, metricKey } from './services/kvStore';
 import { Env } from './types';
 import {
@@ -168,7 +169,7 @@ async function finalizeErrorResponse(params: {
     params.status,
     params.message,
     params.allowedOrigin,
-    params.requestId
+    params.requestId,
   );
 
   logResponse({

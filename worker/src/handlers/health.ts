@@ -3,7 +3,7 @@ import { computeGlobalDailyCap, readMetrics } from '../services/kvStore';
 import { Env } from '../types';
 import { buildJsonResponse } from '../utils/response';
 import { formatDayInTimeZone, resolveDayRolloverTimezone } from '../utils/time';
-import { resolveReviewSampleLimit, toPositiveInt } from '../utils/validation';
+import { resolveReviewSampleLimit, toNonNegativeInt } from '../utils/validation';
 
 export async function handleHealth(env: Env, allowedOrigin: string | null, requestId?: string): Promise<Response> {
   const dayRolloverTimezone = resolveDayRolloverTimezone(env.DAY_ROLLOVER_TIMEZONE);
@@ -16,10 +16,10 @@ export async function handleHealth(env: Env, allowedOrigin: string | null, reque
       status: 'ok',
       model: MODEL_ID,
       dailyCap: computeGlobalDailyCap(env.DAILY_BUDGET_USD, env.WORST_CASE_COST_USD),
-      cacheTtlSeconds: toPositiveInt(env.CACHE_TTL_SECONDS, ONE_DAY_SECONDS),
+      cacheTtlSeconds: toNonNegativeInt(env.CACHE_TTL_SECONDS, ONE_DAY_SECONDS),
       limits: {
-        perMinute: toPositiveInt(env.PER_MINUTE_LIMIT, 5),
-        perDayNewAnalysis: toPositiveInt(env.PER_DAY_NEW_ANALYSIS_LIMIT, 20),
+        perMinute: toNonNegativeInt(env.PER_MINUTE_LIMIT, 5),
+        perDayNewAnalysis: toNonNegativeInt(env.PER_DAY_NEW_ANALYSIS_LIMIT, 20),
         reviewSampleLimit: resolveReviewSampleLimit(env.REVIEW_SAMPLE_LIMIT),
       },
       dayRolloverTimezone,
@@ -30,6 +30,6 @@ export async function handleHealth(env: Env, allowedOrigin: string | null, reque
     },
     200,
     allowedOrigin,
-    requestId
+    requestId,
   );
 }

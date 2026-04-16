@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { normalizeAnalysis } from '../src/domain/normalization';
-import { adjustRiskScoreByDiscrepancy, mapTabelogToGoogleEquivalent } from '../src/domain/scoring';
+import { adjustRiskScoreByDiscrepancy, looksLikeChainStore, mapTabelogToGoogleEquivalent } from '../src/domain/scoring';
 import { PlaceData } from '../src/types';
 import { clampNumber, sanitizeQuery } from '../src/utils/validation';
 
@@ -25,6 +25,12 @@ describe('worker logic utilities', () => {
   it('adjustRiskScoreByDiscrepancy applies penalty and chain-store reduction', () => {
     expect(adjustRiskScoreByDiscrepancy(30, 4.2, 3.0, '個人店')).toBe(64);
     expect(adjustRiskScoreByDiscrepancy(30, 4.2, 3.0, '松屋 新宿西口店')).toBe(50);
+  });
+
+  it('looksLikeChainStore uses defaults and supports environment overrides', () => {
+    expect(looksLikeChainStore('サイゼリヤ 新宿西口店')).toBe(true);
+    expect(looksLikeChainStore('個人店', '個人店,テストチェーン')).toBe(true);
+    expect(looksLikeChainStore('サイゼリヤ 新宿西口店', '個人店,テストチェーン')).toBe(false);
   });
 
   it('normalizeAnalysis keeps tabelog rating only when tabelog citation exists', () => {
@@ -57,24 +63,47 @@ describe('worker logic utilities', () => {
       ],
     };
 
-    const withTabelogCitation = normalizeAnalysis(
-      report,
-      place,
-      'google/gemini-3-flash-preview',
-      'ok',
-      false,
-      [{ title: '食べログ', uri: 'https://tabelog.com/tokyo/A1304/A130401/12345678/' }]
-    );
+    const withTabelogCitation = normalizeAnalysis(report, place, 'google/gemini-3-flash-preview', 'ok', false, [
+      { title: '食べログ', uri: 'https://tabelog.com/tokyo/A1304/A130401/12345678/' },
+    ]);
     expect(withTabelogCitation.tabelogRating).toBeCloseTo(3.2, 2);
 
-    const withoutTabelogCitation = normalizeAnalysis(
-      report,
+    const withoutTabelogCitation = normalizeAnalysis(report, place, 'google/gemini-3-flash-preview', 'ok', false, [
+      { title: 'Google Maps', uri: 'https://www.google.com/maps/place/?q=place_id:place-id' },
+    ]);
+    expect(withoutTabelogCitation.tabelogRating).toBeUndefined();
+  });
+
+  it('normalizeAnalysis falls back for invalid model output', () => {
+    const place: PlaceData = {
+      placeId: 'place-id',
+      name: '検証店舗',
+      address: '東京都渋谷区',
+      googleRating: 4.0,
+      userRatingCount: 42,
+      reviews: [],
+    };
+
+    const normalized = normalizeAnalysis(
+      {
+        sakuraScore: 'invalid',
+        summary: '',
+        risks: [{ category: '', riskLevel: 'unknown', description: '' }],
+        suspiciousKeywordsFound: ['  怪しい  ', '怪しい', '', 123],
+        reviewDistribution: [{ star: 5, percentage: 0 }],
+      },
       place,
       'google/gemini-3-flash-preview',
       'ok',
       false,
-      [{ title: 'Google Maps', uri: 'https://www.google.com/maps/place/?q=place_id:place-id' }]
+      [],
     );
-    expect(withoutTabelogCitation.tabelogRating).toBeUndefined();
+
+    expect(normalized.placeName).toBe(place.name);
+    expect(normalized.address).toBe(place.address);
+    expect(normalized.sakuraScore).toBeGreaterThanOrEqual(0);
+    expect(normalized.risks).toHaveLength(1);
+    expect(normalized.suspiciousKeywordsFound).toEqual(['怪しい']);
+    expect(normalized.reviewDistribution.reduce((sum, item) => sum + item.percentage, 0)).toBe(100);
   });
 });
