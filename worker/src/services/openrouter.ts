@@ -1,6 +1,7 @@
 import { ANALYSIS_SCHEMA, OPENROUTER_API_TIMEOUT_MS, SYSTEM_PROMPT } from '../constants';
 import {
   GroundingUrl,
+  NearbyPlaceData,
   OpenRouterAnnotation,
   OpenRouterMessageContentPart,
   OpenRouterResponse,
@@ -64,12 +65,16 @@ ${reviewLines}
         'Content-Type': 'application/json',
         Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
         'HTTP-Referer': env.OPENROUTER_SITE_URL || 'http://localhost:3000',
-        'X-Title': env.OPENROUTER_APP_NAME || '飲食店サクラチェッカー',
+        'X-Title': buildOpenRouterAppTitle(env),
       },
       body: JSON.stringify({
         model: modelId,
         temperature: 0.2,
         max_tokens: maxTokens,
+        reasoning: {
+          effort: 'none',
+          exclude: true,
+        },
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userPrompt },
@@ -93,17 +98,30 @@ ${reviewLines}
     },
     {
       timeoutMs: OPENROUTER_API_TIMEOUT_MS,
-      onTimeout: () => new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルの応答がタイムアウトしました。'),
-      onError: () => new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルが利用できません。'),
+      onTimeout: () => {
+        logOpenRouterError({ kind: 'timeout', modelId, timeoutMs: OPENROUTER_API_TIMEOUT_MS });
+        return new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルの応答がタイムアウトしました。');
+      },
+      onError: (error) => {
+        logOpenRouterError({ kind: 'request_error', modelId, message: getErrorMessage(error) });
+        return new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルが利用できません。');
+      },
     },
   );
 
   if (!result.response.ok) {
+    logOpenRouterError({
+      kind: 'non_ok_response',
+      modelId,
+      status: result.response.status,
+      statusText: result.response.statusText,
+    });
     throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルが利用できません。');
   }
 
   const payload = result.json;
   if (!payload) {
+    logOpenRouterError({ kind: 'empty_payload', modelId });
     throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデル応答の解析に失敗しました。');
   }
 
@@ -111,11 +129,13 @@ ${reviewLines}
   const content = extractMessageContent(firstChoice?.message?.content);
 
   if (!content) {
+    logOpenRouterError({ kind: 'empty_content', modelId });
     throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデル応答が空でした。');
   }
 
   const parsed = parseJsonContent(content);
   if (!parsed || typeof parsed !== 'object') {
+    logOpenRouterError({ kind: 'invalid_json', modelId });
     throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデル応答の解析に失敗しました。');
   }
 
@@ -124,6 +144,165 @@ ${reviewLines}
     report: parsed,
     citations,
   };
+}
+
+export async function analyzeNearbyBatchWithOpenRouter(
+  origin: { placeName: string; address?: string; location: { lat: number; lng: number }; radiusMeters: number },
+  places: NearbyPlaceData[],
+  modelId: string,
+  env: Env,
+): Promise<Record<string, unknown>> {
+  const maxTokens = Math.min(toNonNegativeInt(env.OPENROUTER_MAX_TOKENS, 1400), 1200);
+  const candidates = places
+    .map(
+      (place, index) =>
+        `${index + 1}. id=${place.placeId} name=${place.name} genre=${place.genre} address=${place.address} Google=${place.googleRating} reviews=${place.userRatingCount} distance=${place.distanceMeters}m`,
+    )
+    .join('\n');
+
+  const userPrompt = `
+起点: ${origin.placeName}${origin.address ? ` (${origin.address})` : ''}
+中心座標: ${origin.location.lat}, ${origin.location.lng}
+半径: ${origin.radiusMeters}m
+
+候補店舗:
+${candidates}
+
+実施タスク:
+1. 候補全体を1回の軽量バッチで比較し、各店舗の trustScore(0-100, 高いほど信頼), sakuraScore(0-100, 高いほどサクラ疑い), suspicionLevel(low/medium/high)を返す
+2. trustScoreはGoogle評価だけでなく、レビュー数、距離、評価件数に対する評価の自然さを補助的に使う
+3. 疑いの高低が混在するよう相対評価し、全店舗が同じ suspicionLevel にならないようにする
+4. summaryは30字以内、reasonsは最大3件
+5. JSONのみで返す
+`.trim();
+
+  const result = await fetchJsonWithTimeout<OpenRouterResponse>(
+    'https://openrouter.ai/api/v1/chat/completions',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+        'HTTP-Referer': env.OPENROUTER_SITE_URL || 'http://localhost:3000',
+        'X-Title': buildOpenRouterAppTitle(env),
+      },
+      body: JSON.stringify({
+        model: modelId,
+        temperature: 0.1,
+        max_tokens: maxTokens,
+        reasoning: {
+          effort: 'none',
+          exclude: true,
+        },
+        messages: [
+          {
+            role: 'system',
+            content: 'あなたは飲食店候補を低コストに相対評価する分析エンジンです。必ずJSONのみを返してください。',
+          },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'nearby_rankings',
+            strict: true,
+            schema: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                rankings: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                      placeId: { type: 'string' },
+                      trustScore: { type: 'integer', minimum: 0, maximum: 100 },
+                      sakuraScore: { type: 'integer', minimum: 0, maximum: 100 },
+                      suspicionLevel: { type: 'string', enum: ['low', 'medium', 'high'] },
+                      summary: { type: 'string' },
+                      reasons: { type: 'array', items: { type: 'string' }, maxItems: 3 },
+                    },
+                    required: ['placeId', 'trustScore', 'sakuraScore', 'suspicionLevel', 'summary', 'reasons'],
+                  },
+                },
+              },
+              required: ['rankings'],
+            },
+          },
+        },
+      }),
+    },
+    {
+      timeoutMs: OPENROUTER_API_TIMEOUT_MS,
+      onTimeout: () => {
+        logOpenRouterError({ kind: 'timeout', modelId, timeoutMs: OPENROUTER_API_TIMEOUT_MS });
+        return new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルの応答がタイムアウトしました。');
+      },
+      onError: (error) => {
+        logOpenRouterError({ kind: 'request_error', modelId, message: getErrorMessage(error) });
+        return new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルが利用できません。');
+      },
+    },
+  );
+
+  if (!result.response.ok || !result.json) {
+    logOpenRouterError({
+      kind: result.response.ok ? 'empty_payload' : 'non_ok_response',
+      modelId,
+      status: result.response.status,
+      statusText: result.response.statusText,
+    });
+    throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデルが利用できません。');
+  }
+
+  const content = extractMessageContent(result.json.choices?.[0]?.message?.content);
+  const parsed = content ? parseJsonContent(content) : null;
+  if (!parsed || typeof parsed !== 'object') {
+    logOpenRouterError({ kind: content ? 'invalid_json' : 'empty_content', modelId });
+    throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデル応答の解析に失敗しました。');
+  }
+  return parsed;
+}
+
+function buildOpenRouterAppTitle(env: Env): string {
+  return toAsciiHeaderValue(env.OPENROUTER_APP_NAME) || 'Bottakuri Checker';
+}
+
+function toAsciiHeaderValue(value?: string): string {
+  if (!value) return '';
+  return value
+    .replace(/[^\x20-\x7E]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120);
+}
+
+function logOpenRouterError(params: {
+  kind: string;
+  modelId: string;
+  timeoutMs?: number;
+  status?: number;
+  statusText?: string;
+  message?: string;
+}): void {
+  console.warn(
+    JSON.stringify({
+      level: 'warn',
+      event: 'openrouter_error',
+      kind: params.kind,
+      modelId: params.modelId,
+      timeoutMs: params.timeoutMs,
+      status: params.status,
+      statusText: params.statusText,
+      message: params.message,
+      timestamp: new Date().toISOString(),
+    }),
+  );
+}
+
+function getErrorMessage(error: unknown): string | undefined {
+  return error instanceof Error ? error.message : undefined;
 }
 
 function extractMessageContent(content: string | OpenRouterMessageContentPart[] | undefined): string {

@@ -71,14 +71,19 @@ describe('worker logic utilities', () => {
       ],
     };
 
-    const withTabelogCitation = normalizeAnalysis(report, place, 'google/gemini-3-flash-preview', 'ok', false, [
+    const withTabelogCitation = normalizeAnalysis(report, place, 'google/gemini-3.1-flash-lite-preview', 'ok', false, [
       { title: '食べログ', uri: 'https://tabelog.com/tokyo/A1304/A130401/12345678/' },
     ]);
     expect(withTabelogCitation.tabelogRating).toBeCloseTo(3.2, 2);
 
-    const withoutTabelogCitation = normalizeAnalysis(report, place, 'google/gemini-3-flash-preview', 'ok', false, [
-      { title: 'Google Maps', uri: 'https://www.google.com/maps/place/?q=place_id:place-id' },
-    ]);
+    const withoutTabelogCitation = normalizeAnalysis(
+      report,
+      place,
+      'google/gemini-3.1-flash-lite-preview',
+      'ok',
+      false,
+      [{ title: 'Google Maps', uri: 'https://www.google.com/maps/place/?q=place_id:place-id' }],
+    );
     expect(withoutTabelogCitation.tabelogRating).toBeUndefined();
   });
 
@@ -101,7 +106,7 @@ describe('worker logic utilities', () => {
         reviewDistribution: [{ star: 5, percentage: 0 }],
       },
       place,
-      'google/gemini-3-flash-preview',
+      'google/gemini-3.1-flash-lite-preview',
       'ok',
       false,
       [],
@@ -135,7 +140,7 @@ describe('worker logic utilities', () => {
         ],
       },
       place,
-      'google/gemini-3-flash-preview',
+      'google/gemini-3.1-flash-lite-preview',
       'ok',
       false,
       [],
@@ -165,7 +170,7 @@ describe('worker logic utilities', () => {
         ],
       },
       buildPlace(),
-      'google/gemini-3-flash-preview',
+      'google/gemini-3.1-flash-lite-preview',
       'ok',
       false,
       [],

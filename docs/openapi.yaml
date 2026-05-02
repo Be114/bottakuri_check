@@ -94,6 +94,118 @@ paths:
           description: Preflight OK
         '403':
           description: Origin拒否
+  /api/nearby-rankings:
+    post:
+      summary: 起点周辺の飲食店ランキングを取得
+      operationId: getNearbyRankings
+      description: |
+        Google Places Nearby Search (New) で起点店舗と同ジャンルの周辺候補を取得し、
+        各候補をPlace Detailsと既存AI分析で個別評価します。Places/APIキーはWorker側でのみ使用します。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NearbyRankingsRequest'
+      responses:
+        '200':
+          description: 正常
+          headers:
+            X-Request-Id:
+              description: リクエスト識別子
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NearbyRankingsResponse'
+        '400':
+          description: 入力エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Origin拒否
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: レート制限・予算超過
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Google Places API取得失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 想定外エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    options:
+      summary: CORS preflight
+      operationId: nearbyRankingsPreflight
+      responses:
+        '204':
+          description: Preflight OK
+        '403':
+          description: Origin拒否
+  /api/nearby-map:
+    get:
+      summary: 周辺ランキング用のGoogle Static Maps画像を取得
+      operationId: getNearbyMap
+      description: |
+        WorkerがGoogle Maps Static APIを呼び、APIキーをブラウザへ露出せずに地図画像を返します。
+        現在位置起点の場合、座標はWorker経由でGoogle Maps Static APIへ送信されます。
+      parameters:
+        - in: query
+          name: originLat
+          required: true
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+        - in: query
+          name: originLng
+          required: true
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+        - in: query
+          name: pins
+          required: true
+          description: 'rank,lat,lng を | 区切りで最大3件。例: 1,35.1,139.1|2,35.2,139.2'
+          schema:
+            type: string
+            maxLength: 500
+      responses:
+        '200':
+          description: Static Maps画像
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: 入力エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Google Maps Static API取得失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     AnalyzeRequest:
@@ -119,6 +231,55 @@ components:
               maximum: 180
       required:
         - query
+    NearbyRankingsRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        originPlaceName:
+          type: string
+          minLength: 2
+          maxLength: 80
+          example: 東京駅
+        originAddress:
+          type: string
+          maxLength: 120
+          example: 東京都千代田区丸の内1丁目
+        originGenre:
+          type: string
+          maxLength: 80
+          description: '起点店舗の表示ジャンル。例: 居酒屋、ラーメン、カフェ。'
+          example: ラーメン
+        originCategories:
+          type: array
+          maxItems: 20
+          description: Google Places typeやフロント側カテゴリ。可能な場合は同ジャンル検索に利用されます。
+          items:
+            type: string
+            maxLength: 80
+          example: [ramen_restaurant]
+        location:
+          type: object
+          additionalProperties: false
+          properties:
+            lat:
+              type: number
+              minimum: -90
+              maximum: 90
+            lng:
+              type: number
+              minimum: -180
+              maximum: 180
+          required:
+            - lat
+            - lng
+        radiusMeters:
+          type: integer
+          minimum: 100
+          maximum: 3000
+          default: 800
+      required:
+        - originPlaceName
+        - location
     AnalysisRisk:
       type: object
       additionalProperties: false
@@ -169,7 +330,7 @@ components:
           type: boolean
         model:
           type: string
-          example: google/gemini-3-flash-preview
+          example: google/gemini-3.1-flash-lite-preview
         generatedAt:
           type: string
           format: date-time
@@ -189,6 +350,28 @@ components:
           type: string
         address:
           type: string
+        location:
+          type: object
+          additionalProperties: false
+          properties:
+            lat:
+              type: number
+            lng:
+              type: number
+          required:
+            - lat
+            - lng
+        category:
+          type: string
+        categories:
+          type: array
+          items:
+            type: string
+        genre:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
         sakuraScore:
           type: integer
           minimum: 0
@@ -245,6 +428,199 @@ components:
         - reviewDistribution
         - groundingUrls
         - meta
+    NearbyOrigin:
+      type: object
+      additionalProperties: false
+      properties:
+        placeName:
+          type: string
+        address:
+          type: string
+        location:
+          type: object
+          additionalProperties: false
+          properties:
+            lat:
+              type: number
+            lng:
+              type: number
+          required:
+            - lat
+            - lng
+        radiusMeters:
+          type: integer
+          minimum: 100
+          maximum: 3000
+        genre:
+          type: string
+        categories:
+          type: array
+          items:
+            type: string
+      required:
+        - placeName
+        - location
+        - radiusMeters
+    NearbyRanking:
+      type: object
+      additionalProperties: false
+      properties:
+        rank:
+          type: integer
+          minimum: 1
+          maximum: 10
+        placeId:
+          type: string
+        name:
+          type: string
+        genre:
+          type: string
+        placeName:
+          type: string
+        address:
+          type: string
+        location:
+          type: object
+          additionalProperties: false
+          properties:
+            lat:
+              type: number
+            lng:
+              type: number
+          required:
+            - lat
+            - lng
+        distanceMeters:
+          type: integer
+          minimum: 0
+        googleRating:
+          type: number
+          minimum: 0
+          maximum: 5
+        userRatingCount:
+          type: integer
+          minimum: 0
+        estimatedRealRating:
+          type: number
+          minimum: 1
+          maximum: 5
+        trustScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        sakuraScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        suspicionLevel:
+          type: string
+          enum: [low, medium, high]
+        verdict:
+          type: string
+          enum: [安全, 注意, 危険]
+        summary:
+          type: string
+        reasons:
+          type: array
+          maxItems: 3
+          items:
+            type: string
+        categories:
+          type: array
+          items:
+            type: string
+        mapUrl:
+          type: string
+          format: uri
+        analysisReport:
+          $ref: '#/components/schemas/AnalysisReport'
+      required:
+        - rank
+        - placeId
+        - name
+        - genre
+        - placeName
+        - address
+        - location
+        - distanceMeters
+        - googleRating
+        - userRatingCount
+        - estimatedRealRating
+        - trustScore
+        - sakuraScore
+        - suspicionLevel
+        - verdict
+        - summary
+        - reasons
+        - categories
+        - mapUrl
+    NearbyRankingsMeta:
+      type: object
+      additionalProperties: false
+      properties:
+        cached:
+          type: boolean
+        model:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        budgetState:
+          type: string
+          enum: [ok, capped]
+        candidatesCount:
+          type: integer
+          minimum: 0
+        analyzedCount:
+          type: integer
+          minimum: 0
+        warnings:
+          type: array
+          items:
+            type: string
+        genreFilter:
+          type: array
+          items:
+            type: string
+      required:
+        - cached
+        - model
+        - generatedAt
+        - budgetState
+        - candidatesCount
+        - analyzedCount
+        - warnings
+    NearbyRankingsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        origin:
+          $ref: '#/components/schemas/NearbyOrigin'
+        rankings:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/NearbyRanking'
+        topPins:
+          type: array
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/NearbyRanking'
+        mapImageUrl:
+          type: string
+          description: Worker経由でGoogle Static Maps画像を取得する相対URL。Google APIキーは含みません。
+        mapEmbedUrl:
+          type: string
+          format: uri
+          description: Google Maps iframe fallback用URL。Google APIキーは含みません。
+        meta:
+          $ref: '#/components/schemas/NearbyRankingsMeta'
+      required:
+        - origin
+        - rankings
+        - topPins
+        - mapEmbedUrl
+        - meta
     HealthMetrics:
       type: object
       additionalProperties: false
@@ -287,7 +663,7 @@ components:
           enum: [ok]
         model:
           type: string
-          example: google/gemini-3-flash-preview
+          example: google/gemini-3.1-flash-lite-preview
         dailyCap:
           type: integer
           minimum: 1
