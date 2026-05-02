@@ -58,10 +58,22 @@ export function normalizeAnalysis(
   const suspiciousKeywordsFound = normalizeKeywords(report.suspiciousKeywordsFound);
   const summary = normalizeSummary(report.summary, risks, verdict);
   const reviewDistribution = normalizeDistribution(report.reviewDistribution, sakuraScore);
+  const categories = place.categories || [];
+  const types = place.types || [];
 
   return {
     placeName: typeof report.placeName === 'string' && report.placeName.trim() ? report.placeName.trim() : place.name,
     address: typeof report.address === 'string' && report.address.trim() ? report.address.trim() : place.address,
+    ...(place.location ? { location: place.location } : {}),
+    ...(place.genre ? { genre: place.genre } : {}),
+    ...(categories.length > 0 ? { category: categories[0], categories } : {}),
+    metadata: {
+      ...(place.genre ? { genre: place.genre } : {}),
+      ...(categories.length > 0 ? { category: categories[0], categories } : {}),
+      ...(place.primaryType ? { primaryType: place.primaryType } : {}),
+      types,
+      placeId: place.placeId,
+    },
     sakuraScore,
     estimatedRealRating: roundTo(estimatedRealRating, 2),
     googleRating: place.googleRating,

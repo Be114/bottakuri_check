@@ -2,8 +2,8 @@
 
 ## Scope and guardrails
 
-- Keep UI simple. Do not add history, ranking, or login features.
-- Keep model fixed to `google/gemini-3-flash-preview`.
+- Keep UI simple. Do not add history or login features; ranking features should stay limited to nearby restaurant discovery.
+- Keep model fixed to `google/gemini-3.1-flash-lite-preview`.
 - Never expose API keys to frontend code.
 
 ## Local setup

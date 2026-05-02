@@ -213,7 +213,7 @@ export function createMockEnv(overrides: Partial<Env> = {}): {
     REVIEW_SAMPLE_LIMIT: '8',
     DAY_ROLLOVER_TIMEZONE: 'Asia/Tokyo',
     OPENROUTER_SITE_URL: 'http://localhost:3000',
-    OPENROUTER_APP_NAME: '飲食店サクラチェッカー',
+    OPENROUTER_APP_NAME: 'Bottakuri Checker',
     ...overrides,
   };
 

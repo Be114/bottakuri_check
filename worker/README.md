@@ -1,7 +1,7 @@
 # Worker API
 
 Cloudflare Workers で `POST /api/analyze` と `GET /api/health` を提供します。  
-Gemini 3 Flash は OpenRouter 経由で呼び出し、APIキーは Worker secret に保持します。
+Google Gemini 3.1 Flash Lite Preview は OpenRouter 経由で呼び出し、APIキーは Worker secret に保持します。
 
 ## セットアップ
 

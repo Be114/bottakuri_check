@@ -1,6 +1,6 @@
 import { type FC } from 'react';
 import { motion } from 'motion/react';
-import { AlertTriangle, CheckCircle2, ExternalLink, MapPin, Search, Store, TrendingDown } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ExternalLink, MapPin, Search, Store, TrendingDown, Zap } from 'lucide-react';
 import { AnalysisReport, AnalysisRisk } from '../types';
 import ScoreGauge from './ScoreGauge';
 import ReviewChart from './ReviewChart';
@@ -8,6 +8,9 @@ import ReviewChart from './ReviewChart';
 interface AnalysisDashboardProps {
   data: AnalysisReport;
   onReset: () => void;
+  onFindNearby?: () => void;
+  showNearbyCta?: boolean;
+  showResetAction?: boolean;
 }
 
 const RISK_STYLE: Record<AnalysisRisk['riskLevel'], { icon: string; badge: string; label: string; text: string }> = {
@@ -42,16 +45,32 @@ function formatGeneratedAt(value: string): string {
   return date.toLocaleString('ja-JP');
 }
 
+function buildGoogleMapsUrl(data: AnalysisReport): string {
+  if (data.location) {
+    return `https://www.google.com/maps/search/?api=1&query=${data.location.lat},${data.location.lng}`;
+  }
+
+  const query = [data.placeName, data.address].filter(Boolean).join(' ').trim();
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
 function RiskIcon({ riskLevel }: { riskLevel: AnalysisRisk['riskLevel'] }) {
   if (riskLevel === 'low') return <CheckCircle2 className="w-5 h-5" />;
   return <AlertTriangle className="w-5 h-5" />;
 }
 
-const AnalysisDashboard: FC<AnalysisDashboardProps> = ({ data, onReset }) => {
+const AnalysisDashboard: FC<AnalysisDashboardProps> = ({
+  data,
+  onReset,
+  onFindNearby,
+  showNearbyCta = true,
+  showResetAction = true,
+}) => {
   const diff = data.googleRating - data.estimatedRealRating;
   const isSuspiciousDiff = diff > 0.8;
   const generatedAtText = formatGeneratedAt(data.meta.generatedAt);
   const sourceLinks = data.groundingUrls.filter((link) => link.uri);
+  const mapUrl = buildGoogleMapsUrl(data);
 
   return (
     <motion.section
@@ -63,20 +82,41 @@ const AnalysisDashboard: FC<AnalysisDashboardProps> = ({ data, onReset }) => {
     >
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <div className="flex items-center gap-2 text-blue-600 text-sm font-medium mb-1">
+          <a
+            href={mapUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mb-1 flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+          >
             <MapPin className="w-4 h-4 shrink-0" />
             <span>{data.address}</span>
-          </div>
+          </a>
           <h1 className="text-3xl font-bold text-slate-900">{data.placeName}</h1>
         </div>
-        <button
-          type="button"
-          onClick={onReset}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors"
-        >
-          <Search className="w-4 h-4" />
-          別の場所を検索
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          {showNearbyCta && onFindNearby && (
+            <motion.button
+              type="button"
+              onClick={onFindNearby}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="group flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-3 rounded-2xl font-bold shadow-lg shadow-blue-200 hover:shadow-xl transition-all"
+            >
+              <Zap className="w-5 h-5 fill-current group-hover:animate-pulse" />
+              近くの優良店を探す
+            </motion.button>
+          )}
+          {showResetAction && (
+            <button
+              type="button"
+              onClick={onReset}
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-medium transition-colors"
+            >
+              <Search className="w-4 h-4" />
+              別の場所を検索
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">

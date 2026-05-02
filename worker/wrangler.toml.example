@@ -14,7 +14,7 @@ OPENROUTER_MAX_TOKENS = "1400"
 REVIEW_SAMPLE_LIMIT = "8"
 DAY_ROLLOVER_TIMEZONE = "Asia/Tokyo"
 OPENROUTER_SITE_URL = "https://bottakurichecker.uk"
-OPENROUTER_APP_NAME = "飲食店サクラチェッカー"
+OPENROUTER_APP_NAME = "Bottakuri Checker"
 # Empty string uses the built-in default chain-store keyword list.
 CHAIN_STORE_KEYWORDS = ""
 

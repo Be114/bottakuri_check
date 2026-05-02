@@ -1,5 +1,5 @@
 import { DEFAULT_REVIEW_SAMPLE_LIMIT, MAX_REVIEW_SAMPLE_LIMIT, MIN_REVIEW_SAMPLE_LIMIT } from '../constants';
-import { AnalyzeRequest } from '../types';
+import { AnalyzeRequest, NearbyRankingsRequest } from '../types';
 
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARACTERS = /[\u0000-\u001F\u007F]/g;
@@ -15,6 +15,17 @@ export function sanitizeLocation(rawLocation: AnalyzeRequest['location']): { lat
   const lng = toFiniteNumber(rawLocation.lng);
   if (lat === null || lng === null) return undefined;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return undefined;
+  return { lat, lng };
+}
+
+export function sanitizeRequiredLocation(
+  rawLocation: NearbyRankingsRequest['location'],
+): { lat: number; lng: number } | null {
+  if (!rawLocation || typeof rawLocation !== 'object') return null;
+  const lat = toFiniteNumber(rawLocation.lat);
+  const lng = toFiniteNumber(rawLocation.lng);
+  if (lat === null || lng === null) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
   return { lat, lng };
 }
 

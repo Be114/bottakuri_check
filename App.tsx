@@ -1,9 +1,19 @@
-import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, type ReactNode, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Loader2, MapPin, Search, ShieldAlert } from 'lucide-react';
-import { ApiError, ApiErrorCode, SearchState } from './types';
-import { analyzePlace } from './services/apiService';
+import { Loader2, MapPin, Navigation, Search, ShieldAlert, Store, X } from 'lucide-react';
+import {
+  AnalysisReport,
+  ApiError,
+  ApiErrorCode,
+  LocationCoordinates,
+  NearbyOriginType,
+  NearbyRankingReport,
+  NearbyRankingRequest,
+  SearchState,
+} from './types';
+import { analyzePlace, fetchNearbyRanking } from './services/apiService';
 import AnalysisDashboard from './components/AnalysisDashboard';
+import NearbyRankingDashboard from './components/NearbyRankingDashboard';
 
 const ERROR_MESSAGES: Record<ApiErrorCode, string> = {
   INVALID_QUERY: '店名や場所は2〜80文字で入力してください。',
@@ -38,6 +48,55 @@ function getMessageFromError(error: unknown): { code?: ApiErrorCode; message: st
     return { code: apiError.code, message };
   }
   return { message: '分析中にエラーが発生しました。もう一度お試しください。' };
+}
+
+function getCurrentLocation(): Promise<LocationCoordinates> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('unsupported'));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      (error) => reject(error),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
+    );
+  });
+}
+
+function optionalText(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function optionalTextList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map(optionalText).filter((item): item is string => Boolean(item));
+}
+
+function getOriginGenreContext(report: AnalysisReport): Pick<NearbyRankingRequest, 'originGenre' | 'originCategories'> {
+  const metadata = report.metadata && typeof report.metadata === 'object' ? report.metadata : undefined;
+  const originGenre = optionalText(report.genre) || optionalText(metadata?.genre);
+  const originCategories = Array.from(
+    new Set(
+      [
+        ...optionalTextList(report.categories),
+        ...optionalTextList(metadata?.categories),
+        optionalText(report.category),
+        optionalText(metadata?.category),
+      ].filter((item): item is string => Boolean(item)),
+    ),
+  );
+
+  return {
+    originGenre,
+    originCategories: originCategories.length > 0 ? originCategories : undefined,
+  };
 }
 
 function AnimatedSearchSVG() {
@@ -275,29 +334,20 @@ function App() {
     step: 'idle',
     message: '',
   });
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | undefined>(undefined);
-
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-      },
-      (error) => {
-        console.log('Location access denied or failed', error);
-      },
-    );
-  }, []);
+  const [isNearbyModalOpen, setIsNearbyModalOpen] = useState(false);
+  const [nearbyState, setNearbyState] = useState<{
+    isLoading: boolean;
+    data?: NearbyRankingReport;
+    error?: string;
+    geolocationError?: string;
+  }>({ isLoading: false });
 
   const currentView = useMemo(() => {
+    if (nearbyState.data) return 'nearby';
     if (searchState.step === 'complete' && searchState.data) return 'result';
     if (searchState.isLoading) return 'loading';
     return 'home';
-  }, [searchState]);
+  }, [nearbyState.data, searchState]);
 
   const handleSearch = async (event?: FormEvent) => {
     event?.preventDefault();
@@ -314,7 +364,6 @@ function App() {
     try {
       const finalResult = await analyzePlace({
         query: trimmedQuery,
-        location: userLocation,
       });
 
       setSearchState({
@@ -336,14 +385,73 @@ function App() {
 
   const resetSearch = () => {
     setSearchState({ isLoading: false, step: 'idle', message: '' });
+    setNearbyState({ isLoading: false });
+    setIsNearbyModalOpen(false);
     setQuery('');
   };
 
+  const fetchNearby = async (location: LocationCoordinates, originType: NearbyOriginType) => {
+    if (!searchState.data) return;
+
+    setNearbyState({ isLoading: true });
+    try {
+      const originGenreContext = getOriginGenreContext(searchState.data);
+      const result = await fetchNearbyRanking({
+        location,
+        originType,
+        originPlaceName: searchState.data.placeName,
+        originAddress: searchState.data.address,
+        ...originGenreContext,
+      });
+      setNearbyState({ isLoading: false, data: result });
+      setIsNearbyModalOpen(false);
+    } catch (error) {
+      const errorState = getMessageFromError(error);
+      setNearbyState({ isLoading: false, error: errorState.message });
+    }
+  };
+
+  const handleNearbyFromCurrentLocation = async () => {
+    setNearbyState({ isLoading: true });
+
+    try {
+      const location = await getCurrentLocation();
+      await fetchNearby(location, 'current_location');
+    } catch (error) {
+      let geolocationError = '現在位置を取得できませんでした。ブラウザの位置情報許可を確認してください。';
+      if (error instanceof Error && error.message === 'unsupported') {
+        geolocationError = 'このブラウザは現在位置の取得に対応していません。';
+      }
+      setNearbyState({ isLoading: false, geolocationError });
+    }
+  };
+
+  const handleNearbyFromAnalyzedPlace = async () => {
+    if (!searchState.data?.location) {
+      setNearbyState({
+        isLoading: false,
+        geolocationError:
+          'この分析結果には店舗の緯度経度が含まれていません。現在のAPIではlocationが必須のため、現在位置を起点にしてください。',
+      });
+      return;
+    }
+
+    await fetchNearby(searchState.data.location, 'analyzed_place');
+  };
+
   const loadingCopy = 'Googleマップ情報の取得とAI分析を実行中です。完了までこのままお待ちください。';
+  const mainClassName =
+    currentView === 'nearby'
+      ? 'w-full flex-1 px-4 pb-8 pt-0 lg:max-w-6xl lg:mx-auto lg:py-8'
+      : 'max-w-6xl mx-auto px-4 py-8 w-full flex-1';
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 selection:bg-blue-200 flex flex-col">
-      <header className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200">
+      <header
+        className={`bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-200 ${
+          currentView === 'nearby' ? 'hidden lg:block' : ''
+        }`}
+      >
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <button
             type="button"
@@ -357,7 +465,7 @@ function App() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8 w-full flex-1">
+      <main className={mainClassName}>
         <AnimatePresence mode="wait">
           {currentView === 'home' && (
             <motion.section
@@ -368,7 +476,7 @@ function App() {
               className="pt-12 pb-24"
             >
               <div className="text-center mb-12">
-                <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 mb-6">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 mb-6">
                   飲食店サクラチェッカー
                 </h1>
                 <p className="text-lg text-slate-600 max-w-2xl mx-auto">
@@ -446,10 +554,110 @@ function App() {
           )}
 
           {currentView === 'result' && searchState.data && (
-            <AnalysisDashboard key="result" data={searchState.data} onReset={resetSearch} />
+            <AnalysisDashboard
+              key="result"
+              data={searchState.data}
+              onReset={resetSearch}
+              onFindNearby={() => {
+                setNearbyState({ isLoading: false });
+                setIsNearbyModalOpen(true);
+              }}
+            />
+          )}
+
+          {currentView === 'nearby' && nearbyState.data && searchState.data && (
+            <NearbyRankingDashboard
+              key="nearby"
+              report={nearbyState.data}
+              analyzedReport={searchState.data}
+              onBack={() => setNearbyState({ isLoading: false })}
+            />
           )}
         </AnimatePresence>
       </main>
+
+      <AnimatePresence>
+        {isNearbyModalOpen && searchState.data && (
+          <motion.div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="nearby-origin-title"
+          >
+            <motion.div
+              initial={{ scale: 0.96, y: 12 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.96, y: 12 }}
+              className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl"
+            >
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div>
+                  <h2 id="nearby-origin-title" className="text-xl font-bold text-slate-900">
+                    起点を選択
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">位置情報を起点にします</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsNearbyModalOpen(false)}
+                  className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  aria-label="閉じる"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={handleNearbyFromCurrentLocation}
+                  disabled={nearbyState.isLoading}
+                  className="group flex h-full flex-col items-start rounded-2xl border border-blue-100 bg-blue-50/50 p-5 text-left transition hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-100">
+                    <Navigation className="w-5 h-5" />
+                  </div>
+                  <div className="font-bold text-slate-900">現在位置</div>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">位置情報を起点にします</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleNearbyFromAnalyzedPlace}
+                  disabled={nearbyState.isLoading || !searchState.data.location}
+                  className="flex h-full flex-col items-start rounded-2xl border border-slate-200 bg-white p-5 text-left transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white">
+                    <Store className="w-5 h-5" />
+                  </div>
+                  <div className="font-bold text-slate-900">分析した店</div>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                    {searchState.data.location
+                      ? `${searchState.data.placeName} を起点にします。`
+                      : 'この結果には店舗の緯度経度がないため利用できません。'}
+                  </p>
+                </button>
+              </div>
+
+              {nearbyState.isLoading && (
+                <div className="mt-4 flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-medium text-slate-600">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  周辺ランキングを取得しています...
+                </div>
+              )}
+
+              {(nearbyState.geolocationError || nearbyState.error) && (
+                <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                  {nearbyState.geolocationError || nearbyState.error}
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {currentView === 'home' && (
         <footer className="bg-slate-900 text-slate-400 py-12 text-center mt-auto">

@@ -33,32 +33,46 @@ export async function handleAnalyze(request: Request, env: Env): Promise<Analysi
 
   await incrementMetric(env, metricKey('requests', dayKey));
 
+  const cacheTtl = toNonNegativeInt(env.CACHE_TTL_SECONDS, ONE_DAY_SECONDS);
+  const cacheKey = await buildCacheKey(query, location);
+  const cached = await env.APP_KV.get(cacheKey, 'json');
+  if (isAnalysisReport(cached)) {
+    let cachedResult: AnalysisReport = {
+      ...cached,
+      meta: {
+        ...cached.meta,
+        cached: true,
+        model: MODEL_ID,
+        budgetState: 'ok',
+      },
+    };
+    if (!cachedResult.genre && (!cachedResult.categories || cachedResult.categories.length === 0)) {
+      const enrichedResult = await enrichCachedAnalysisWithPlaceGenre(
+        cachedResult,
+        query,
+        location,
+        env,
+        reviewSampleLimit,
+      );
+      if (enrichedResult.genre || (enrichedResult.categories && enrichedResult.categories.length > 0)) {
+        cachedResult = enrichedResult;
+        await env.APP_KV.put(cacheKey, JSON.stringify(cachedResult), { expirationTtl: cacheTtl });
+      }
+    }
+    await incrementMetric(env, metricKey('cache_hits', dayKey));
+    return cachedResult;
+  }
+
   const perMinuteLimit = toNonNegativeInt(env.PER_MINUTE_LIMIT, 5);
-  const minuteRateKey = `rate:minute:${ipHash}:${minuteBucket}`;
+  const minuteRateKey = `rate:minute:analyze:${ipHash}:${minuteBucket}`;
   const minuteAllowed = await allowWithinLimit(env, minuteRateKey, perMinuteLimit, 120);
   if (!minuteAllowed) {
     await incrementMetric(env, metricKey('rate_limited', dayKey));
     throw new ApiHttpError('RATE_LIMIT', 429, 'アクセスが集中しています。少し時間をおいて再度お試しください。');
   }
 
-  const cacheTtl = toNonNegativeInt(env.CACHE_TTL_SECONDS, ONE_DAY_SECONDS);
-  const cacheKey = await buildCacheKey(query, location);
-  const cached = await env.APP_KV.get(cacheKey, 'json');
-  if (isAnalysisReport(cached)) {
-    const cachedResult: AnalysisReport = {
-      ...cached,
-      meta: {
-        ...cached.meta,
-        cached: true,
-        budgetState: 'ok',
-      },
-    };
-    await incrementMetric(env, metricKey('cache_hits', dayKey));
-    return cachedResult;
-  }
-
   const perDayNewAnalysisLimit = toNonNegativeInt(env.PER_DAY_NEW_ANALYSIS_LIMIT, 20);
-  const dayRateKey = `rate:day:${ipHash}:${dayKey}`;
+  const dayRateKey = `rate:day:analyze:${ipHash}:${dayKey}`;
   const dayAllowed = await allowWithinLimit(env, dayRateKey, perDayNewAnalysisLimit, ONE_DAY_SECONDS * 2);
   if (!dayAllowed) {
     await incrementMetric(env, metricKey('rate_limited', dayKey));
@@ -91,4 +105,31 @@ export async function handleAnalyze(request: Request, env: Env): Promise<Analysi
   await incrementMetric(env, metricKey('new_analysis', dayKey));
 
   return normalized;
+}
+
+async function enrichCachedAnalysisWithPlaceGenre(
+  report: AnalysisReport,
+  query: string,
+  location: { lat: number; lng: number } | undefined,
+  env: Env,
+  reviewSampleLimit: number,
+): Promise<AnalysisReport> {
+  try {
+    const place = await fetchPlaceData(query, location, env, reviewSampleLimit);
+    return {
+      ...report,
+      ...(place.genre ? { genre: place.genre } : {}),
+      ...(place.categories.length > 0 ? { category: place.categories[0], categories: place.categories } : {}),
+      metadata: {
+        ...(report.metadata || {}),
+        ...(place.genre ? { genre: place.genre } : {}),
+        ...(place.categories.length > 0 ? { category: place.categories[0], categories: place.categories } : {}),
+        ...(place.primaryType ? { primaryType: place.primaryType } : {}),
+        types: place.types,
+        placeId: place.placeId,
+      },
+    };
+  } catch {
+    return report;
+  }
 }

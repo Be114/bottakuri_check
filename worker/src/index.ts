@@ -1,5 +1,7 @@
 import { handleAnalyze } from './handlers/analyze';
 import { handleHealth } from './handlers/health';
+import { handleNearbyMap } from './handlers/nearbyMap';
+import { handleNearbyRankings } from './handlers/nearbyRankings';
 export { AtomicCounter } from './durableObjects/atomicCounter';
 import { incrementMetric, metricKey } from './services/kvStore';
 import { Env } from './types';
@@ -49,7 +51,81 @@ export default {
       return response;
     }
 
-    if (path !== '/api/analyze') {
+    if (path === '/api/nearby-map') {
+      if (method === 'OPTIONS') {
+        const response = buildPreflightResponse(allowedOrigin);
+        logResponse({
+          requestId,
+          path,
+          method,
+          status: response.status,
+          latencyMs: Date.now() - startedAt,
+        });
+        return response;
+      }
+
+      if (method !== 'GET') {
+        return await finalizeErrorResponse({
+          env,
+          requestId,
+          path,
+          method,
+          origin,
+          allowedOrigin,
+          startedAt,
+          code: 'UPSTREAM_ERROR',
+          status: 405,
+          message: 'Method Not Allowed',
+        });
+      }
+
+      try {
+        const response = await handleNearbyMap(request, env, allowedOrigin, requestId);
+        logResponse({
+          requestId,
+          path,
+          method,
+          status: response.status,
+          latencyMs: Date.now() - startedAt,
+        });
+        return response;
+      } catch (error) {
+        if (error instanceof ApiHttpError) {
+          return await finalizeErrorResponse({
+            env,
+            requestId,
+            path,
+            method,
+            origin,
+            allowedOrigin,
+            startedAt,
+            code: error.code,
+            status: error.status,
+            message: error.message,
+          });
+        }
+        return await finalizeErrorResponse({
+          env,
+          requestId,
+          path,
+          method,
+          origin,
+          allowedOrigin,
+          startedAt,
+          code: 'UPSTREAM_ERROR',
+          status: 500,
+          message: '予期せぬエラーが発生しました。',
+        });
+      }
+    }
+
+    const postHandlers = new Map<string, (request: Request, env: Env) => Promise<unknown>>([
+      ['/api/analyze', handleAnalyze],
+      ['/api/nearby-rankings', handleNearbyRankings],
+    ]);
+
+    const handler = postHandlers.get(path);
+    if (!handler) {
       return await finalizeErrorResponse({
         env,
         requestId,
@@ -107,7 +183,7 @@ export default {
     }
 
     try {
-      const result = await handleAnalyze(request, env);
+      const result = await handler(request, env);
       const response = buildJsonResponse(result, 200, allowedOrigin, requestId);
       logResponse({
         requestId,
