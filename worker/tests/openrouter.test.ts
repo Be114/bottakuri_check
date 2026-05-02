@@ -139,6 +139,35 @@ describe('OpenRouter service', () => {
     expect(requests[0]?.model).toBe(OPENROUTER_MODEL_ID);
     expect(requests[0]?.reasoning).toEqual({ effort: 'none', exclude: true });
   });
+
+  it('rejects malformed nearby batch analysis payloads', async () => {
+    const { env } = createMockEnv();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  rankings: [{ placeId: 'nearby-place-id', trustScore: 80 }],
+                }),
+              },
+            },
+          ],
+        }),
+      ),
+    );
+
+    await expect(
+      analyzeNearbyBatchWithOpenRouter(
+        { placeName: '起点', location: { lat: 35.6813, lng: 139.7672 }, radiusMeters: 800 },
+        [buildNearbyPlace()],
+        'google/gemini-3.1-flash-lite-preview',
+        env,
+      ),
+    ).rejects.toMatchObject({ code: 'MODEL_UNAVAILABLE', status: 503 });
+  });
 });
 
 function buildPlace(): PlaceData {

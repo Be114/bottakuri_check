@@ -278,7 +278,6 @@ components:
           maximum: 3000
           default: 800
       required:
-        - originPlaceName
         - location
     AnalysisRisk:
       type: object
@@ -554,6 +553,7 @@ components:
         - reasons
         - categories
         - mapUrl
+        - analysisReport
     NearbyRankingsMeta:
       type: object
       additionalProperties: false

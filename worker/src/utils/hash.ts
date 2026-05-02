@@ -24,11 +24,24 @@ export async function buildNearbyCacheKey(
   genreKey = 'restaurant',
 ): Promise<string> {
   const roundedLocation = `${location.lat.toFixed(3)},${location.lng.toFixed(3)}`;
-  return `cache:nearby-rankings:v5:${await hashString(`${roundedLocation}|${Math.round(radiusMeters)}|${genreKey}`)}`;
+  const normalizedGenreKey = normalizeNearbyGenreKey(genreKey);
+  return `cache:nearby-rankings:v5:${await hashString(
+    `${roundedLocation}|${Math.round(radiusMeters)}|${normalizedGenreKey}`,
+  )}`;
 }
 
 export async function buildNearbyPlaceAnalysisCacheKey(placeId: string): Promise<string> {
   return `cache:nearby-place-analysis:v1:${await hashString(placeId)}`;
+}
+
+function normalizeNearbyGenreKey(genreKey: string): string {
+  const normalizedTypes = genreKey
+    .split(',')
+    .map((type) => type.trim().toLowerCase())
+    .filter(Boolean)
+    .sort();
+
+  return Array.from(new Set(normalizedTypes)).join(',') || 'restaurant';
 }
 
 export async function hashString(input: string): Promise<string> {

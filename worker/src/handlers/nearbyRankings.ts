@@ -65,10 +65,11 @@ type RankingBeforeRank = Omit<NearbyRanking, 'rank'>;
 
 export async function handleNearbyRankings(request: Request, env: Env): Promise<NearbyRankingsResponse> {
   const payload = (await request.json().catch(() => ({}))) as NearbyRankingsRequest;
-  const originPlaceName = sanitizeQuery(payload.originPlaceName);
-  if (originPlaceName.length < 2 || originPlaceName.length > 80) {
+  const providedOriginPlaceName = sanitizeQuery(payload.originPlaceName);
+  if (providedOriginPlaceName && (providedOriginPlaceName.length < 2 || providedOriginPlaceName.length > 80)) {
     throw new ApiHttpError('INVALID_QUERY', 400, '起点名は2〜80文字で入力してください。');
   }
+  const originPlaceName = providedOriginPlaceName || '現在位置';
 
   const originAddress = sanitizeOptionalText(payload.originAddress, 120);
   const originGenre = sanitizeOptionalText(payload.originGenre, 80);
@@ -100,7 +101,14 @@ export async function handleNearbyRankings(request: Request, env: Env): Promise<
 
   const warnings: string[] = [];
   const originGenreContext = await resolveOriginGenreContext(
-    { originPlaceName, originAddress, originGenre, originCategories, location },
+    {
+      originPlaceName,
+      originAddress,
+      originGenre,
+      originCategories,
+      location,
+      shouldResolveOriginPlace: Boolean(providedOriginPlaceName),
+    },
     env,
     warnings,
   );
@@ -113,9 +121,13 @@ export async function handleNearbyRankings(request: Request, env: Env): Promise<
   const cacheKey = await buildNearbyCacheKey(location, radiusMeters, genreFilter.includedPrimaryTypes.join(','));
   const cached = await env.APP_KV.get(cacheKey, 'json');
   if (isNearbyRankingsResponse(cached)) {
+    const rankings = ensureRankingAnalysisReports(cached.rankings);
+    const topPins = ensureRankingAnalysisReports(cached.topPins);
     await incrementMetric(env, metricKey('cache_hits', dayKey));
     return {
       ...cached,
+      rankings,
+      topPins,
       mapEmbedUrl: cached.mapEmbedUrl || buildNearbyMapEmbedUrl(location),
       origin: {
         ...cached.origin,
@@ -207,6 +219,7 @@ async function resolveOriginGenreContext(
     originGenre?: string;
     originCategories: string[];
     location: { lat: number; lng: number };
+    shouldResolveOriginPlace: boolean;
   },
   env: Env,
   warnings: string[],
@@ -215,6 +228,13 @@ async function resolveOriginGenreContext(
   if (!initialFilter.isFallback) {
     return {
       originGenre: input.originGenre || initialFilter.label,
+      originCategories: input.originCategories,
+    };
+  }
+
+  if (!input.shouldResolveOriginPlace) {
+    return {
+      originGenre: input.originGenre,
       originCategories: input.originCategories,
     };
   }
@@ -381,6 +401,7 @@ function rankPlaces(
     .map((place, index) => {
       const fallback = buildHeuristicAnalysis(place, radiusMeters, index, places.length);
       const analysis = batchAnalysis?.get(place.placeId) || fallback;
+      const analysisReport = analysis.analysisReport || buildHeuristicAnalysisReport(place, analysis);
       return {
         placeId: place.placeId,
         name: place.name,
@@ -402,7 +423,7 @@ function rankPlaces(
         reasons: analysis.reasons,
         categories: place.categories,
         mapUrl: buildGoogleMapsUrl(place.placeId, place.location),
-        ...(analysis.analysisReport ? { analysisReport: analysis.analysisReport } : {}),
+        analysisReport,
       };
     })
     .sort((a, b) => computeRankScore(b, radiusMeters) - computeRankScore(a, radiusMeters))
@@ -414,6 +435,64 @@ function computeRankScore(ranking: RankingBeforeRank, radiusMeters: number): num
   const ratingBonus = clampNumber(ranking.googleRating / 5, 0, 1) * 8;
   const reviewBonus = Math.min(Math.log10(ranking.userRatingCount + 1), 3) * 3;
   return ranking.trustScore * 0.78 + distanceBonus + ratingBonus + reviewBonus;
+}
+
+function ensureRankingAnalysisReports(rankings: NearbyRanking[]): NearbyRanking[] {
+  return rankings.map((ranking) => ({
+    ...ranking,
+    analysisReport:
+      (ranking as NearbyRanking & { analysisReport?: AnalysisReport }).analysisReport ||
+      buildHeuristicAnalysisReport(ranking, ranking),
+  }));
+}
+
+function buildHeuristicAnalysisReport(
+  place: Pick<NearbyPlaceData, 'placeId' | 'name' | 'genre' | 'categories' | 'address' | 'googleRating'> & {
+    primaryType?: string;
+    types?: string[];
+    location?: { lat: number; lng: number };
+  },
+  analysis: Pick<
+    BatchAnalysisByPlaceId extends Map<string, infer T> ? T : never,
+    'sakuraScore' | 'estimatedRealRating' | 'verdict' | 'suspicionLevel' | 'summary' | 'reasons'
+  >,
+): AnalysisReport {
+  const riskLevel = analysis.suspicionLevel;
+  return {
+    placeName: place.name,
+    address: place.address,
+    location: place.location,
+    genre: place.genre,
+    category: place.categories[0],
+    categories: place.categories,
+    metadata: {
+      genre: place.genre,
+      categories: place.categories,
+      ...(place.primaryType ? { primaryType: place.primaryType } : {}),
+      types: place.types || [],
+      placeId: place.placeId,
+      source: 'nearby_heuristic',
+    },
+    sakuraScore: analysis.sakuraScore,
+    estimatedRealRating: analysis.estimatedRealRating,
+    googleRating: place.googleRating,
+    verdict: analysis.verdict,
+    risks: analysis.reasons.map((reason) => ({
+      category: '簡易評価',
+      riskLevel,
+      description: reason,
+    })),
+    suspiciousKeywordsFound: [],
+    summary: analysis.summary,
+    reviewDistribution: [],
+    groundingUrls: [{ title: 'Google Maps', uri: buildGoogleMapsUrl(place.placeId, place.location) }],
+    meta: {
+      cached: false,
+      model: MODEL_ID,
+      generatedAt: new Date().toISOString(),
+      budgetState: 'ok',
+    },
+  };
 }
 
 function buildHeuristicAnalysis(

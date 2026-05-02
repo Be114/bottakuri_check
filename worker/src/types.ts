@@ -188,7 +188,7 @@ export interface NearbyRanking {
   reasons: string[];
   categories: string[];
   mapUrl: string;
-  analysisReport?: AnalysisReport;
+  analysisReport: AnalysisReport;
 }
 
 export interface NearbyRankingsResponse {

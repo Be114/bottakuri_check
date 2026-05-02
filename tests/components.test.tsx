@@ -260,9 +260,44 @@ describe('NearbyRankingDashboard', () => {
     );
   });
 
+  it('rejects worker map images from untrusted hosts', () => {
+    const report = buildNearbyReport();
+    report.mapImageUrl = 'https://attacker.workers.dev/api/nearby-map?origin=35.6895,139.6917&pins=candidate-1';
+    report.mapEmbedUrl = undefined;
+
+    render(<NearbyRankingDashboard report={report} analyzedReport={buildReport()} onBack={vi.fn()} />);
+
+    const mapImage = screen.getByRole('img', { name: '上位3店舗と起点を示す周辺マップ' });
+    expect(mapImage).not.toHaveAttribute('src', report.mapImageUrl);
+    expect(mapImage).toHaveAttribute(
+      'src',
+      expect.stringContaining('https://bottakuri-check-api.steep-wood-db4a.workers.dev/api/nearby-map'),
+    );
+  });
+
+  it('uses the sorted top three places for generated map pins', () => {
+    const report = buildNearbyReport();
+    report.mapImageUrl = undefined;
+    report.mapEmbedUrl = undefined;
+    report.places[4].distanceMeters = 10;
+    report.places[4].location = { lat: 35.71, lng: 139.72 };
+
+    render(<NearbyRankingDashboard report={report} analyzedReport={buildReport()} onBack={vi.fn()} />);
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'PCランキングの並び順' }), {
+      target: { value: 'distance' },
+    });
+
+    expect(screen.getByTestId('nearby-map-pin-5')).toBeInTheDocument();
+    const mapImage = screen.getByRole('img', { name: '上位3店舗と起点を示す周辺マップ' });
+    expect(decodeURIComponent(mapImage.getAttribute('src') || '')).toContain('pins=5,35.710000,139.720000');
+  });
+
   it('opens a Google Maps URL from pins and map buttons without triggering candidate analysis', () => {
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
-    render(<NearbyRankingDashboard report={buildNearbyReport()} analyzedReport={buildReport()} onBack={vi.fn()} />);
+    const report = buildNearbyReport();
+    report.places[0].mapUrl = 'https://www.google.com/url?q=https%3A%2F%2Fexample.test';
+    render(<NearbyRankingDashboard report={report} analyzedReport={buildReport()} onBack={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: '優良店Aの地図を開く' }));
     expect(openSpy).toHaveBeenCalledWith(
@@ -271,6 +306,7 @@ describe('NearbyRankingDashboard', () => {
       'noopener,noreferrer',
     );
     expect(openSpy.mock.calls[0][0]).toContain('query_place_id=candidate-1');
+    expect(openSpy.mock.calls[0][0]).not.toContain('google.com/url');
 
     fireEvent.click(screen.getByRole('button', { name: '開く' }));
     expect(analyzePlace).not.toHaveBeenCalled();

@@ -125,6 +125,51 @@ describe('App loading state', () => {
     expect(screen.queryByRole('button', { name: /近くの優良店を探す/ })).not.toBeInTheDocument();
   });
 
+  it('does not reuse nearby current location for the next regular search', async () => {
+    vi.mocked(analyzePlace).mockResolvedValue(buildReport());
+    vi.mocked(fetchNearbyRanking).mockResolvedValue(buildNearbyReport());
+    vi.stubGlobal('navigator', {
+      geolocation: {
+        getCurrentPosition: vi.fn((success: PositionCallback) =>
+          success({
+            coords: {
+              latitude: 35.681236,
+              longitude: 139.767125,
+              accuracy: 10,
+              altitude: null,
+              altitudeAccuracy: null,
+              heading: null,
+              speed: null,
+            },
+            timestamp: Date.now(),
+          } as GeolocationPosition),
+        ),
+      },
+    });
+
+    render(<App />);
+
+    submitSearch('新宿 居酒屋');
+    expect(await screen.findByText('検証店舗')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /近くの優良店を探す/ }));
+    fireEvent.click(screen.getByRole('button', { name: /現在位置/ }));
+    expect(await screen.findByText('周辺の優良店ランキング')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /元の1店舗分析へ戻る/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /別の場所を検索/ }));
+
+    const input = await screen.findByLabelText('店舗検索入力');
+    fireEvent.change(input, { target: { value: '渋谷 カフェ' } });
+    const form = input.closest('form');
+    if (!form) {
+      throw new Error('form element not found');
+    }
+    fireEvent.submit(form);
+
+    expect(await screen.findByText('検証店舗')).toBeInTheDocument();
+    expect(analyzePlace).toHaveBeenLastCalledWith({ query: '渋谷 カフェ' });
+  });
+
   it('passes structured origin genre and categories to nearby ranking requests', async () => {
     vi.mocked(analyzePlace).mockResolvedValue(buildReport());
     vi.mocked(fetchNearbyRanking).mockResolvedValue(buildNearbyReport());

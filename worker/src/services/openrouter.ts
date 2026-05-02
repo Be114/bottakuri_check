@@ -262,7 +262,50 @@ ${candidates}
     logOpenRouterError({ kind: content ? 'invalid_json' : 'empty_content', modelId });
     throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデル応答の解析に失敗しました。');
   }
-  return parsed;
+  return validateNearbyBatchResponse(parsed, modelId);
+}
+
+function validateNearbyBatchResponse(value: unknown, modelId: string): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    logOpenRouterError({ kind: 'invalid_schema', modelId });
+    throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデル応答の形式が不正です。');
+  }
+
+  const rankings = (value as { rankings?: unknown }).rankings;
+  if (!Array.isArray(rankings) || !rankings.every(isValidNearbyBatchRanking)) {
+    logOpenRouterError({ kind: 'invalid_schema', modelId });
+    throw new ApiHttpError('MODEL_UNAVAILABLE', 503, 'AIモデル応答の形式が不正です。');
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function isValidNearbyBatchRanking(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+
+  const ranking = value as Record<string, unknown>;
+  const trustScore = ranking.trustScore;
+  const sakuraScore = ranking.sakuraScore;
+  const suspicionLevel = ranking.suspicionLevel;
+  const reasons = ranking.reasons;
+
+  return (
+    typeof ranking.placeId === 'string' &&
+    ranking.placeId.trim().length > 0 &&
+    typeof trustScore === 'number' &&
+    Number.isFinite(trustScore) &&
+    trustScore >= 0 &&
+    trustScore <= 100 &&
+    typeof sakuraScore === 'number' &&
+    Number.isFinite(sakuraScore) &&
+    sakuraScore >= 0 &&
+    sakuraScore <= 100 &&
+    (suspicionLevel === 'low' || suspicionLevel === 'medium' || suspicionLevel === 'high') &&
+    typeof ranking.summary === 'string' &&
+    Array.isArray(reasons) &&
+    reasons.length <= 3 &&
+    reasons.every((reason) => typeof reason === 'string')
+  );
 }
 
 function buildOpenRouterAppTitle(env: Env): string {

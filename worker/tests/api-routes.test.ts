@@ -579,7 +579,7 @@ describe('worker API routes', () => {
     expect(payload.rankings).toHaveLength(3);
     expect(payload.meta.analyzedCount).toBe(2);
     expect(payload.meta.warnings.join('\n')).toContain('失敗店のAI分析に失敗');
-    expect(failed?.analysisReport).toBeUndefined();
+    expect(failed?.analysisReport.metadata?.source).toBe('nearby_heuristic');
     expect(failed?.trustScore).toBeTypeOf('number');
     expect(new URL(failed?.mapUrl || '').searchParams.get('query_place_id')).toBe('ramen-fail');
   });
@@ -591,6 +591,7 @@ describe('worker API routes', () => {
     });
     const location = { lat: 35.681236, lng: 139.767125 };
     const cached = buildCachedNearbyResponse(location);
+    delete (cached.rankings[0] as Partial<NearbyRankingsResponse['rankings'][number]>).analysisReport;
     kv.seed(await buildNearbyCacheKey(location, 800, 'ramen_restaurant'), JSON.stringify(cached));
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
@@ -616,6 +617,35 @@ describe('worker API routes', () => {
     expect(response.status).toBe(200);
     expect(payload.meta.cached).toBe(true);
     expect(payload.rankings[0].placeName).toBe('キャッシュ店');
+    expect(payload.rankings[0].analysisReport.metadata?.source).toBe('nearby_heuristic');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/nearby-rankings accepts current-location requests without an origin place name', async () => {
+    const { env, kv } = createMockEnv();
+    const location = { lat: 35.681236, lng: 139.767125 };
+    kv.seed(
+      await buildNearbyCacheKey(location, 800, 'restaurant'),
+      JSON.stringify(buildCachedNearbyResponse(location)),
+    );
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(
+      new Request('https://example.com/api/nearby-rankings', {
+        method: 'POST',
+        headers: {
+          Origin: 'http://localhost:3000',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ location }),
+      }),
+      env,
+    );
+    const payload = (await response.json()) as NearbyRankingsResponse;
+
+    expect(response.status).toBe(200);
+    expect(payload.origin.placeName).toBe('現在位置');
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -861,6 +891,7 @@ function buildCachedNearbyResponse(location: { lat: number; lng: number }): Near
         reasons: ['キャッシュ'],
         categories: ['restaurant'],
         mapUrl: 'https://www.google.com/maps/place/?q=place_id:cached-place',
+        analysisReport: buildCachedReport(),
       },
     ],
     topPins: [],

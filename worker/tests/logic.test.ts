@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { isAnalysisReport, normalizeAnalysis } from '../src/domain/normalization';
 import { adjustRiskScoreByDiscrepancy, looksLikeChainStore, mapTabelogToGoogleEquivalent } from '../src/domain/scoring';
+import { buildNearbyGenreFilter } from '../src/services/places';
 import { PlaceData } from '../src/types';
+import { buildNearbyCacheKey } from '../src/utils/hash';
 import { clampNumber, sanitizeLocation, sanitizeQuery } from '../src/utils/validation';
 
 describe('worker logic utilities', () => {
@@ -41,11 +43,28 @@ describe('worker logic utilities', () => {
     expect(looksLikeChainStore('サイゼリヤ 新宿西口店', '個人店,テストチェーン')).toBe(false);
   });
 
+  it('keeps specific Google food place types for nearby genre filters', () => {
+    expect(buildNearbyGenreFilter(undefined, ['family_restaurant']).includedPrimaryTypes).toEqual([
+      'family_restaurant',
+    ]);
+    expect(buildNearbyGenreFilter(undefined, ['steak_house']).includedPrimaryTypes).toEqual(['steak_house']);
+  });
+
+  it('normalizes nearby cache keys for equivalent genre type sets', async () => {
+    const location = { lat: 35.681236, lng: 139.767125 };
+    const firstKey = await buildNearbyCacheKey(location, 800, 'ramen_restaurant,cafe');
+    const secondKey = await buildNearbyCacheKey(location, 800, ' cafe, ramen_restaurant ');
+
+    expect(firstKey).toBe(secondKey);
+  });
+
   it('normalizeAnalysis keeps tabelog rating only when tabelog citation exists', () => {
     const place: PlaceData = {
       placeId: 'place-id',
       name: '検証店舗',
       address: '東京都新宿区',
+      types: ['restaurant'],
+      categories: ['restaurant'],
       googleRating: 3.5,
       userRatingCount: 120,
       reviews: [],
@@ -92,6 +111,8 @@ describe('worker logic utilities', () => {
       placeId: 'place-id',
       name: '検証店舗',
       address: '東京都渋谷区',
+      types: ['restaurant'],
+      categories: ['restaurant'],
       googleRating: 4.0,
       userRatingCount: 42,
       reviews: [],
@@ -187,6 +208,8 @@ function buildPlace(): PlaceData {
     placeId: 'place-id',
     name: '検証店舗',
     address: '東京都新宿区',
+    types: ['restaurant'],
+    categories: ['restaurant'],
     googleRating: 3.5,
     userRatingCount: 120,
     reviews: [],

@@ -47,8 +47,17 @@ export async function handleAnalyze(request: Request, env: Env): Promise<Analysi
       },
     };
     if (!cachedResult.genre && (!cachedResult.categories || cachedResult.categories.length === 0)) {
-      cachedResult = await enrichCachedAnalysisWithPlaceGenre(cachedResult, query, location, env, reviewSampleLimit);
-      await env.APP_KV.put(cacheKey, JSON.stringify(cachedResult), { expirationTtl: cacheTtl });
+      const enrichedResult = await enrichCachedAnalysisWithPlaceGenre(
+        cachedResult,
+        query,
+        location,
+        env,
+        reviewSampleLimit,
+      );
+      if (enrichedResult.genre || (enrichedResult.categories && enrichedResult.categories.length > 0)) {
+        cachedResult = enrichedResult;
+        await env.APP_KV.put(cacheKey, JSON.stringify(cachedResult), { expirationTtl: cacheTtl });
+      }
     }
     await incrementMetric(env, metricKey('cache_hits', dayKey));
     return cachedResult;

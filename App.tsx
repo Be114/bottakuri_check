@@ -334,7 +334,6 @@ function App() {
     step: 'idle',
     message: '',
   });
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | undefined>(undefined);
   const [isNearbyModalOpen, setIsNearbyModalOpen] = useState(false);
   const [nearbyState, setNearbyState] = useState<{
     isLoading: boolean;
@@ -365,7 +364,6 @@ function App() {
     try {
       const finalResult = await analyzePlace({
         query: trimmedQuery,
-        location: userLocation,
       });
 
       setSearchState({
@@ -418,7 +416,6 @@ function App() {
 
     try {
       const location = await getCurrentLocation();
-      setUserLocation(location);
       await fetchNearby(location, 'current_location');
     } catch (error) {
       let geolocationError = '現在位置を取得できませんでした。ブラウザの位置情報許可を確認してください。';

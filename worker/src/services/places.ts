@@ -477,44 +477,6 @@ const FOOD_PLACE_TYPES = new Set([
 
 const BROAD_FOOD_PLACE_TYPES = new Set(['restaurant', 'japanese_restaurant']);
 
-const NEARBY_RESTAURANT_PRIMARY_TYPES = [
-  'restaurant',
-  'japanese_restaurant',
-  'japanese_izakaya_restaurant',
-  'tea_house',
-  'ramen_restaurant',
-  'sushi_restaurant',
-  'seafood_restaurant',
-  'yakiniku_restaurant',
-  'korean_barbecue_restaurant',
-  'yakitori_restaurant',
-  'tonkatsu_restaurant',
-  'japanese_curry_restaurant',
-  'chicken_restaurant',
-  'chinese_noodle_restaurant',
-  'chinese_restaurant',
-  'korean_restaurant',
-  'thai_restaurant',
-  'vietnamese_restaurant',
-  'indian_restaurant',
-  'italian_restaurant',
-  'french_restaurant',
-  'spanish_restaurant',
-  'american_restaurant',
-  'barbecue_restaurant',
-  'hamburger_restaurant',
-  'pizza_restaurant',
-  'fast_food_restaurant',
-  'cafe',
-  'coffee_shop',
-  'bakery',
-  'bar',
-  'pub',
-  'wine_bar',
-  'dessert_restaurant',
-  'dessert_shop',
-] as const;
-
 const GENRE_DEFINITIONS: Array<{ label: string; keywords: string[]; primaryTypes: string[] }> = [
   { label: '居酒屋', keywords: ['居酒屋', 'izakaya'], primaryTypes: ['japanese_izakaya_restaurant'] },
   { label: 'ラーメン', keywords: ['ラーメン', 'らーめん', 'ramen'], primaryTypes: ['ramen_restaurant'] },
@@ -673,9 +635,7 @@ function normalizePlaceType(value: string): string | null {
 }
 
 function uniqueTypes(types: string[]): string[] {
-  const validTypes = types.filter((type) =>
-    NEARBY_RESTAURANT_PRIMARY_TYPES.includes(type as (typeof NEARBY_RESTAURANT_PRIMARY_TYPES)[number]),
-  );
+  const validTypes = types.filter((type) => FOOD_PLACE_TYPES.has(type));
   return Array.from(new Set(validTypes.length > 0 ? validTypes : ['restaurant'])).slice(0, 20);
 }
 

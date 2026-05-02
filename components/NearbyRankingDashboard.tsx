@@ -112,7 +112,6 @@ const FALLBACK_PIN_POSITIONS: PinPosition[] = [
   { x: 68, y: 66 },
 ];
 
-const WORKER_MAP_IMAGE_HOSTS = new Set(['bottakuri-check-api.steep-wood-db4a.workers.dev']);
 const GOOGLE_MAPS_API_KEY =
   import.meta.env.MODE === 'test' ? '' : String(import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '').trim();
 const GOOGLE_MAP_ID = 'DEMO_MAP_ID';
@@ -252,8 +251,13 @@ function safeGoogleMapsUrl(url?: string): string | undefined {
 
   try {
     const parsedUrl = new URL(url);
+    if (parsedUrl.protocol !== 'https:') return undefined;
+
     const hostname = parsedUrl.hostname.replace(/^www\./, '');
-    if (hostname === 'google.com' || hostname === 'maps.google.com') return parsedUrl.toString();
+    const isGoogleMapsHost = hostname === 'google.com' || hostname === 'maps.google.com';
+    const isMapsPath = parsedUrl.pathname === '/maps' || parsedUrl.pathname.startsWith('/maps/');
+    const hasApiKey = Array.from(parsedUrl.searchParams.keys()).some((key) => key.toLowerCase() === 'key');
+    if (isGoogleMapsHost && isMapsPath && !hasApiKey) return parsedUrl.toString();
   } catch {
     return undefined;
   }
@@ -265,19 +269,22 @@ function safeWorkerMapImageUrl(url?: string, apiBaseUrl = API_BASE_URL): string 
   if (!url) return undefined;
 
   try {
-    const baseUrl =
-      apiBaseUrl.startsWith('http') || typeof window === 'undefined'
-        ? apiBaseUrl
-        : new URL(apiBaseUrl, window.location.origin).toString();
+    const baseUrl = apiBaseUrl.startsWith('http')
+      ? apiBaseUrl
+      : new URL(apiBaseUrl, typeof window === 'undefined' ? 'http://localhost' : window.location.origin).toString();
+    const apiBase = new URL(baseUrl);
     const parsedUrl = new URL(url, baseUrl);
     const isRelativeUrl = url.startsWith('/api/nearby-map');
-    const isLocalhost = parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1';
-    const isWorkerHost = WORKER_MAP_IMAGE_HOSTS.has(parsedUrl.hostname) || parsedUrl.hostname.endsWith('.workers.dev');
+    const isLocalhost = ['localhost', '127.0.0.1', '[::1]'].includes(parsedUrl.hostname);
+    const isApiBaseHost = parsedUrl.hostname === apiBase.hostname;
+    const hasApiKey = Array.from(parsedUrl.searchParams.keys()).some((key) => key.toLowerCase() === 'key');
 
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) return undefined;
+    if (!isLocalhost && parsedUrl.protocol !== apiBase.protocol) return undefined;
     if (parsedUrl.pathname !== '/api/nearby-map') return undefined;
-    if (parsedUrl.searchParams.has('key')) return undefined;
-    if (!isRelativeUrl && !isLocalhost && !isWorkerHost) return undefined;
-    if (isRelativeUrl && !isLocalhost && !isWorkerHost) return undefined;
+    if (hasApiKey) return undefined;
+    if (!isRelativeUrl && !isLocalhost && !isApiBaseHost) return undefined;
+    if (isRelativeUrl && !isLocalhost && !isApiBaseHost) return undefined;
 
     return parsedUrl.toString();
   } catch {
@@ -694,11 +701,12 @@ const RankedGoogleMap: FC<{
 };
 
 const NearbyRankingDashboard: FC<NearbyRankingDashboardProps> = ({ report, onBack }) => {
-  const topThree = useMemo(() => report.places.slice(0, 3), [report.places]);
+  const rankedTopThree = useMemo(() => sortPlaces(report.places, 'rank').slice(0, 3), [report.places]);
   const [sortOption, setSortOption] = useState<SortOption>('rank');
   const displayedPlaces = useMemo(() => sortPlaces(report.places, sortOption), [report.places, sortOption]);
   const displayedTopThree = useMemo(() => displayedPlaces.slice(0, 3), [displayedPlaces]);
   const displayedRest = useMemo(() => displayedPlaces.slice(3, 10), [displayedPlaces]);
+  const topThree = displayedTopThree;
   const topPinPositions = useMemo(
     () => calculatePinPositions(report.origin.location, topThree),
     [report.origin.location, topThree],
@@ -708,13 +716,15 @@ const NearbyRankingDashboard: FC<NearbyRankingDashboardProps> = ({ report, onBac
     [report.origin.location, topThree],
   );
   const mapImageUrl = useMemo(
-    () => safeWorkerMapImageUrl(report.mapImageUrl) || safeWorkerMapImageUrl(generatedMapImageUrl),
-    [generatedMapImageUrl, report.mapImageUrl],
+    () =>
+      (sortOption === 'rank' ? safeWorkerMapImageUrl(report.mapImageUrl) : undefined) ||
+      safeWorkerMapImageUrl(generatedMapImageUrl),
+    [generatedMapImageUrl, report.mapImageUrl, sortOption],
   );
   const mapEmbedUrl = useMemo(() => safeGoogleMapsEmbedUrl(report.mapEmbedUrl), [report.mapEmbedUrl]);
   const [isMapImageUnavailable, setIsMapImageUnavailable] = useState(false);
   const [isGoogleMapUnavailable, setIsGoogleMapUnavailable] = useState(false);
-  const [selectedPlace, setSelectedPlace] = useState<NearbyPlace | undefined>(topThree[0] || report.places[0]);
+  const [selectedPlace, setSelectedPlace] = useState<NearbyPlace | undefined>(rankedTopThree[0] || report.places[0]);
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisReport | undefined>(undefined);
   const [analysisError, setAnalysisError] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -723,12 +733,12 @@ const NearbyRankingDashboard: FC<NearbyRankingDashboardProps> = ({ report, onBac
   const sheetDragStartYRef = useRef<number | null>(null);
 
   useEffect(() => {
-    setSelectedPlace(topThree[0] || report.places[0]);
+    setSelectedPlace(rankedTopThree[0] || report.places[0]);
     setSelectedAnalysis(undefined);
     setAnalysisError('');
     setIsMobileSheetExpanded(true);
     setSortOption('rank');
-  }, [report, topThree]);
+  }, [report, rankedTopThree]);
 
   useEffect(() => {
     setIsMapImageUnavailable(false);

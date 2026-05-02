@@ -275,7 +275,7 @@ function normalizeNearbyReport(
       address: origin?.address || request.originAddress,
       genre: origin?.genre || request.originGenre,
       categories: Array.isArray(origin?.categories) ? origin.categories : request.originCategories,
-      radiusMeters: origin?.radiusMeters,
+      radiusMeters: origin?.radiusMeters ?? request.radiusMeters,
     },
     places: candidates
       .map(normalizeNearbyPlace)
