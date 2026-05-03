@@ -4,6 +4,60 @@ export interface AnalysisRisk {
   description: string;
 }
 
+export type ReviewDistributionSource =
+  | 'google_aggregate'
+  | 'google_review_sample'
+  | 'external_site'
+  | 'model_estimated'
+  | 'unavailable';
+
+export interface AnalysisEvidence {
+  category:
+    | 'billing_trouble'
+    | 'price_opacity'
+    | 'catch_sales'
+    | 'fake_praise'
+    | 'review_distribution'
+    | 'rating_gap'
+    | 'external_reputation'
+    | 'low_information'
+    | 'place_exception'
+    | 'other';
+  severity: number;
+  source: 'google_review_sample' | 'external_site' | 'model' | 'deterministic_rule' | 'place_metadata';
+  snippet?: string;
+  description: string;
+}
+
+export interface ComponentScores {
+  reviewTextRisk: number;
+  ratingGapRisk: number;
+  starPatternRisk: number;
+  externalComplaintRisk: number;
+  fakePraiseRisk: number;
+  lowInformationRisk: number;
+}
+
+export type ExceptionPolicyKind =
+  | 'none'
+  | 'national_chain'
+  | 'regional_chain'
+  | 'franchise'
+  | 'public_facility'
+  | 'hotel_or_department_restaurant'
+  | 'low_review_new_store'
+  | 'premium_or_course_restaurant'
+  | 'bar_or_izakaya_standard_charge'
+  | 'ambiguous_place_match';
+
+export interface ExceptionPolicyResult {
+  applied: boolean;
+  kind: ExceptionPolicyKind;
+  reason: string;
+  originalScore: number;
+  adjustedScore: number;
+}
+
 export interface ReviewSource {
   platform: string;
   rating: number;
@@ -18,6 +72,7 @@ export interface AnalysisMeta {
   model: string;
   generatedAt: string;
   budgetState: BudgetState;
+  scoringVersion?: number;
 }
 
 export interface AnalysisMetadata {
@@ -50,9 +105,23 @@ export interface AnalysisReport {
   metadata?: AnalysisMetadata;
   sakuraScore: number; // 0 to 100, where 100 is confirmed fake/sakura, 0 is safe.
   estimatedRealRating: number;
+  estimatedRealRatingSource?: 'tabelog' | 'model_external' | 'model_only' | 'fallback';
   googleRating: number;
   tabelogRating?: number; // Optional, might not be found
   verdict: string; // "Safe", "Suspicious", "Danger"
+  confidence?: 'low' | 'medium' | 'high';
+  confidenceReasons?: string[];
+  componentScores?: ComponentScores;
+  scoringDebug?: {
+    rawModelScore?: number;
+    deterministicScore: number;
+    scoreBeforeException: number;
+    finalScore: number;
+    appliedFloors: string[];
+    appliedCaps: string[];
+    appliedMultipliers: string[];
+  };
+  exceptionPolicy?: ExceptionPolicyResult;
   risks: AnalysisRisk[];
   suspiciousKeywordsFound: string[];
   summary: string;
@@ -60,6 +129,8 @@ export interface AnalysisReport {
     star: number;
     percentage: number;
   }[];
+  reviewDistributionSource?: ReviewDistributionSource;
+  evidence?: AnalysisEvidence[];
   groundingUrls: { title: string; uri: string }[];
   meta: AnalysisMeta;
 }

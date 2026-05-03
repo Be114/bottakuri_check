@@ -1,5 +1,6 @@
 import { MODEL_ID, ONE_DAY_SECONDS } from '../constants';
 import { normalizeAnalysis, isAnalysisReport } from '../domain/normalization';
+import { computeLowInformationRisk, deriveVerdict } from '../domain/scoring';
 import {
   allowWithinLimit,
   computeGlobalDailyCap,
@@ -447,7 +448,10 @@ function ensureRankingAnalysisReports(rankings: NearbyRanking[]): NearbyRanking[
 }
 
 function buildHeuristicAnalysisReport(
-  place: Pick<NearbyPlaceData, 'placeId' | 'name' | 'genre' | 'categories' | 'address' | 'googleRating'> & {
+  place: Pick<
+    NearbyPlaceData,
+    'placeId' | 'name' | 'genre' | 'categories' | 'address' | 'googleRating' | 'userRatingCount'
+  > & {
     primaryType?: string;
     types?: string[];
     location?: { lat: number; lng: number };
@@ -458,6 +462,7 @@ function buildHeuristicAnalysisReport(
   >,
 ): AnalysisReport {
   const riskLevel = analysis.suspicionLevel;
+  const lowInformationRisk = computeLowInformationRisk(place.userRatingCount || 0, 0);
   return {
     placeName: place.name,
     address: place.address,
@@ -475,8 +480,34 @@ function buildHeuristicAnalysisReport(
     },
     sakuraScore: analysis.sakuraScore,
     estimatedRealRating: analysis.estimatedRealRating,
+    estimatedRealRatingSource: 'fallback',
     googleRating: place.googleRating,
     verdict: analysis.verdict,
+    confidence: 'low',
+    confidenceReasons: ['AI分析に失敗したため、Google評価・レビュー件数・距離のみで簡易評価しています。'],
+    componentScores: {
+      reviewTextRisk: 0,
+      ratingGapRisk: 0,
+      starPatternRisk: 0,
+      externalComplaintRisk: 0,
+      fakePraiseRisk: 0,
+      lowInformationRisk,
+    },
+    scoringDebug: {
+      deterministicScore: analysis.sakuraScore,
+      scoreBeforeException: analysis.sakuraScore,
+      finalScore: analysis.sakuraScore,
+      appliedFloors: [],
+      appliedCaps: ['nearby_heuristic_no_text_or_external_evidence'],
+      appliedMultipliers: [],
+    },
+    exceptionPolicy: {
+      applied: false,
+      kind: 'none',
+      reason: 'AI分析失敗時の簡易評価のため例外補正は未適用',
+      originalScore: analysis.sakuraScore,
+      adjustedScore: analysis.sakuraScore,
+    },
     risks: analysis.reasons.map((reason) => ({
       category: '簡易評価',
       riskLevel,
@@ -485,12 +516,22 @@ function buildHeuristicAnalysisReport(
     suspiciousKeywordsFound: [],
     summary: analysis.summary,
     reviewDistribution: [],
+    reviewDistributionSource: 'unavailable',
+    evidence: [
+      {
+        category: 'low_information',
+        severity: lowInformationRisk,
+        source: 'deterministic_rule',
+        description: 'AI分析に失敗したため、レビュー本文や外部評判の根拠は未確認です。',
+      },
+    ],
     groundingUrls: [{ title: 'Google Maps', uri: buildGoogleMapsUrl(place.placeId, place.location) }],
     meta: {
       cached: false,
       model: MODEL_ID,
       generatedAt: new Date().toISOString(),
       budgetState: 'ok',
+      scoringVersion: 2,
     },
   };
 }
@@ -507,19 +548,16 @@ function buildHeuristicAnalysis(
   const baselineTrust = Math.round(clampNumber(35 + ratingComponent + reviewComponent + distanceComponent, 15, 92));
   const relativePenalty = totalCount > 1 ? Math.round((index / (totalCount - 1)) * 12) : 0;
   const trustScore = clampNumber(baselineTrust - relativePenalty, 0, 100);
-  const sakuraScore = clampNumber(
-    100 - trustScore + (place.userRatingCount < 20 && place.googleRating >= 4.5 ? 12 : 0),
-    0,
-    100,
-  );
+  const rawSakuraScore = 100 - trustScore + (place.userRatingCount < 20 && place.googleRating >= 4.5 ? 8 : 0);
+  const sakuraScore = clampNumber(rawSakuraScore, 0, 45);
   const suspicionLevel = deriveSuspicionLevel(sakuraScore);
   return {
     trustScore,
     sakuraScore,
     suspicionLevel,
     estimatedRealRating: roundTo(clampNumber(place.googleRating - sakuraScore / 120, 1, 5), 2),
-    verdict: suspicionLevel === 'low' ? '安全' : suspicionLevel === 'medium' ? '注意' : '危険',
-    summary: suspicionLevel === 'low' ? '信頼度高め' : suspicionLevel === 'medium' ? '追加確認推奨' : 'サクラ疑い高め',
+    verdict: deriveVerdict(sakuraScore),
+    summary: suspicionLevel === 'low' ? '信頼度高め' : '追加確認推奨',
     reasons: [
       `Google評価 ${place.googleRating.toFixed(1)} / ${place.userRatingCount}件`,
       `起点から約${place.distanceMeters}m`,
