@@ -1,17 +1,13 @@
 import {
-  AnalysisEvidence,
   AnalysisMeta,
   AnalysisMetadata,
   AnalysisReport,
   ApiError,
   ApiErrorCode,
-  ComponentScores,
-  ExceptionPolicyResult,
   LocationCoordinates,
   NearbyPlace,
   NearbyRankingReport,
   NearbyRankingRequest,
-  ReviewDistributionSource,
 } from '../types';
 
 interface AnalyzeRequest {
@@ -158,106 +154,6 @@ function normalizeMetadata(value: unknown): AnalysisMetadata | undefined {
   };
 }
 
-function normalizeScore(value: unknown): number | undefined {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return undefined;
-  return Math.max(0, Math.min(100, Math.round(parsed)));
-}
-
-function normalizeComponentScores(value: unknown): ComponentScores | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
-  const record = value as Partial<Record<keyof ComponentScores, unknown>>;
-  return {
-    reviewTextRisk: normalizeScore(record.reviewTextRisk) ?? 0,
-    ratingGapRisk: normalizeScore(record.ratingGapRisk) ?? 0,
-    starPatternRisk: normalizeScore(record.starPatternRisk) ?? 0,
-    externalComplaintRisk: normalizeScore(record.externalComplaintRisk) ?? 0,
-    fakePraiseRisk: normalizeScore(record.fakePraiseRisk) ?? 0,
-    lowInformationRisk: normalizeScore(record.lowInformationRisk) ?? 0,
-  };
-}
-
-function normalizeReviewDistributionSource(value: unknown): ReviewDistributionSource | undefined {
-  if (
-    value === 'google_aggregate' ||
-    value === 'google_review_sample' ||
-    value === 'external_site' ||
-    value === 'model_estimated' ||
-    value === 'unavailable'
-  ) {
-    return value;
-  }
-  return undefined;
-}
-
-function normalizeEvidence(value: unknown): AnalysisEvidence[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const evidence = value
-    .map((item): AnalysisEvidence | null => {
-      if (!item || typeof item !== 'object') return null;
-      const record = item as Record<string, unknown>;
-      const description = normalizeOptionalText(record.description);
-      if (!description) return null;
-      const severity = normalizeScore(record.severity) ?? 0;
-      const category =
-        record.category === 'billing_trouble' ||
-        record.category === 'price_opacity' ||
-        record.category === 'catch_sales' ||
-        record.category === 'fake_praise' ||
-        record.category === 'review_distribution' ||
-        record.category === 'rating_gap' ||
-        record.category === 'external_reputation' ||
-        record.category === 'low_information' ||
-        record.category === 'place_exception' ||
-        record.category === 'other'
-          ? record.category
-          : 'other';
-      const source =
-        record.source === 'google_review_sample' ||
-        record.source === 'external_site' ||
-        record.source === 'model' ||
-        record.source === 'deterministic_rule' ||
-        record.source === 'place_metadata'
-          ? record.source
-          : 'model';
-      const snippet = normalizeOptionalText(record.snippet);
-      return {
-        category,
-        severity,
-        source,
-        ...(snippet ? { snippet } : {}),
-        description,
-      };
-    })
-    .filter((item): item is AnalysisEvidence => item !== null);
-  return evidence.length > 0 ? evidence : undefined;
-}
-
-function normalizeExceptionPolicy(value: unknown): ExceptionPolicyResult | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
-  const record = value as Record<string, unknown>;
-  const kind =
-    record.kind === 'none' ||
-    record.kind === 'national_chain' ||
-    record.kind === 'regional_chain' ||
-    record.kind === 'franchise' ||
-    record.kind === 'public_facility' ||
-    record.kind === 'hotel_or_department_restaurant' ||
-    record.kind === 'low_review_new_store' ||
-    record.kind === 'premium_or_course_restaurant' ||
-    record.kind === 'bar_or_izakaya_standard_charge' ||
-    record.kind === 'ambiguous_place_match'
-      ? record.kind
-      : 'none';
-  return {
-    applied: Boolean(record.applied),
-    kind,
-    reason: normalizeOptionalText(record.reason) || '',
-    originalScore: normalizeScore(record.originalScore) ?? 0,
-    adjustedScore: normalizeScore(record.adjustedScore) ?? 0,
-  };
-}
-
 function normalizeReport(payload: Partial<AnalysisReport>): AnalysisReport {
   return {
     placeName: payload.placeName || '不明な店舗',
@@ -269,49 +165,13 @@ function normalizeReport(payload: Partial<AnalysisReport>): AnalysisReport {
     metadata: normalizeMetadata(payload.metadata),
     sakuraScore: Number(payload.sakuraScore ?? 0),
     estimatedRealRating: Number(payload.estimatedRealRating ?? 0),
-    estimatedRealRatingSource:
-      payload.estimatedRealRatingSource === 'tabelog' ||
-      payload.estimatedRealRatingSource === 'model_external' ||
-      payload.estimatedRealRatingSource === 'model_only' ||
-      payload.estimatedRealRatingSource === 'fallback'
-        ? payload.estimatedRealRatingSource
-        : undefined,
     googleRating: Number(payload.googleRating ?? 0),
     tabelogRating: payload.tabelogRating,
     verdict: payload.verdict || '注意',
-    confidence:
-      payload.confidence === 'low' || payload.confidence === 'medium' || payload.confidence === 'high'
-        ? payload.confidence
-        : undefined,
-    confidenceReasons: Array.isArray(payload.confidenceReasons)
-      ? payload.confidenceReasons.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-      : undefined,
-    componentScores: normalizeComponentScores(payload.componentScores),
-    scoringDebug:
-      payload.scoringDebug && typeof payload.scoringDebug === 'object'
-        ? {
-            rawModelScore: normalizeScore(payload.scoringDebug.rawModelScore),
-            deterministicScore: normalizeScore(payload.scoringDebug.deterministicScore) ?? 0,
-            scoreBeforeException: normalizeScore(payload.scoringDebug.scoreBeforeException) ?? 0,
-            finalScore: normalizeScore(payload.scoringDebug.finalScore) ?? 0,
-            appliedFloors: Array.isArray(payload.scoringDebug.appliedFloors)
-              ? payload.scoringDebug.appliedFloors.filter((item): item is string => typeof item === 'string')
-              : [],
-            appliedCaps: Array.isArray(payload.scoringDebug.appliedCaps)
-              ? payload.scoringDebug.appliedCaps.filter((item): item is string => typeof item === 'string')
-              : [],
-            appliedMultipliers: Array.isArray(payload.scoringDebug.appliedMultipliers)
-              ? payload.scoringDebug.appliedMultipliers.filter((item): item is string => typeof item === 'string')
-              : [],
-          }
-        : undefined,
-    exceptionPolicy: normalizeExceptionPolicy(payload.exceptionPolicy),
     risks: Array.isArray(payload.risks) ? payload.risks : [],
     suspiciousKeywordsFound: Array.isArray(payload.suspiciousKeywordsFound) ? payload.suspiciousKeywordsFound : [],
     summary: payload.summary || '分析結果の要約を取得できませんでした。',
     reviewDistribution: Array.isArray(payload.reviewDistribution) ? payload.reviewDistribution : [],
-    reviewDistributionSource: normalizeReviewDistributionSource(payload.reviewDistributionSource),
-    evidence: normalizeEvidence(payload.evidence),
     groundingUrls: Array.isArray(payload.groundingUrls) ? payload.groundingUrls : [],
     meta: payload.meta
       ? {
@@ -319,10 +179,6 @@ function normalizeReport(payload: Partial<AnalysisReport>): AnalysisReport {
           model: payload.meta.model || DEFAULT_META.model,
           generatedAt: payload.meta.generatedAt || new Date().toISOString(),
           budgetState: payload.meta.budgetState === 'capped' ? 'capped' : 'ok',
-          scoringVersion:
-            typeof payload.meta.scoringVersion === 'number' && Number.isFinite(payload.meta.scoringVersion)
-              ? payload.meta.scoringVersion
-              : undefined,
         }
       : { ...DEFAULT_META, generatedAt: new Date().toISOString() },
   };

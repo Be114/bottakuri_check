@@ -59,157 +59,6 @@ function RiskIcon({ riskLevel }: { riskLevel: AnalysisRisk['riskLevel'] }) {
   return <AlertTriangle className="w-5 h-5" />;
 }
 
-function buildDisplayRisks(data: AnalysisReport, isSuspiciousDiff: boolean): AnalysisRisk[] {
-  const risks = data.risks.map(toDisplayRisk).map((risk, index) => ({
-    ...risk,
-    category: normalizePointTitle(risk.category, index),
-  }));
-  const result: AnalysisRisk[] = [];
-
-  for (const risk of risks) {
-    if (result.some((item) => item.category === risk.category)) continue;
-    result.push(risk);
-    if (result.length >= 2) break;
-  }
-
-  const fallbackRisks = buildFallbackRisks(data, isSuspiciousDiff);
-  for (const risk of fallbackRisks) {
-    if (result.length >= 2) break;
-    if (result.some((item) => item.category === risk.category)) continue;
-    result.push(risk);
-  }
-
-  return result.slice(0, 2);
-}
-
-function toDisplayRisk(risk: AnalysisRisk): AnalysisRisk {
-  return {
-    ...risk,
-    category: formatRiskCategory(risk.category),
-    description: softenRiskDescription(risk.category, risk.description),
-  };
-}
-
-function formatRiskCategory(category: string): string {
-  const normalized = category.trim().toLowerCase();
-  const labels: Record<string, string> = {
-    service_quality: '接客について',
-    service: '接客について',
-    pricing: '料金について',
-    price: '料金について',
-    billing: '会計について',
-    billing_trouble: '会計について',
-    price_opacity: '料金のわかりやすさ',
-    catch_sales: '客引き・案内について',
-    fake_praise: '口コミの雰囲気',
-    review_distribution: '口コミの偏り',
-    rating_gap: '評価の差',
-    external_reputation: '外部サイトの評判',
-    low_information: '情報の少なさ',
-    review_text: '口コミ本文',
-    star_pattern: '口コミの偏り',
-    exception_policy: 'お店のタイプ',
-    例外補正: 'お店のタイプも踏まえました',
-    簡易評価: 'ざっくり確認',
-    総合: 'レビュー内容',
-    総合評価: 'レビュー内容',
-    レビュー本文: '口コミ本文',
-    評価乖離: '評価の差',
-    評価分布: '口コミの偏り',
-    外部評判: '外部サイトの評判',
-  };
-
-  if (labels[category]) return labels[category];
-  if (labels[normalized]) return labels[normalized];
-
-  const humanized = category
-    .replace(/[_-]+/g, ' ')
-    .replace(/\brisk\b/gi, '')
-    .replace(/\bquality\b/gi, '品質')
-    .trim();
-  return humanized || '気になった点';
-}
-
-function normalizePointTitle(title: string, index: number): string {
-  const trimmed = title.trim();
-  if (
-    !trimmed ||
-    trimmed === 'なし' ||
-    trimmed === '不明' ||
-    trimmed === '気になった点' ||
-    trimmed === '全体として' ||
-    trimmed === '総合'
-  ) {
-    return index === 0 ? 'レビュー内容' : '評価の偏り';
-  }
-  if (trimmed === '口コミ本文') return 'レビュー内容';
-  if (trimmed === '口コミの偏り') return '評価の偏り';
-  if (trimmed === '評価の差') return '評価の偏り';
-  return trimmed;
-}
-
-function buildFallbackRisks(data: AnalysisReport, isSuspiciousDiff: boolean): AnalysisRisk[] {
-  const scoreRiskLevel: AnalysisRisk['riskLevel'] =
-    data.sakuraScore >= 70 ? 'high' : data.sakuraScore >= 40 ? 'medium' : 'low';
-
-  return [
-    {
-      category: 'レビュー内容',
-      riskLevel: scoreRiskLevel,
-      description:
-        scoreRiskLevel === 'high'
-          ? '口コミ本文に、料金や案内について注意したい内容が見られます。'
-          : scoreRiskLevel === 'medium'
-            ? '口コミ本文に少し気になる点があります。利用前に最近の口コミも見ておくと安心です。'
-            : '口コミ本文を見る限り、会計トラブルや強引な案内を強く疑う内容は多くありません。',
-    },
-    {
-      category: '評価の偏り',
-      riskLevel: isSuspiciousDiff ? 'medium' : scoreRiskLevel === 'high' ? 'medium' : 'low',
-      description: isSuspiciousDiff
-        ? 'Google評価と補正後の評価に差があります。評価だけで決めず、口コミ本文も合わせて見ています。'
-        : '星の付き方に極端な違和感は強く出ていません。評価分布は推定なので、参考情報として見てください。',
-    },
-  ];
-}
-
-function softenRiskDescription(category: string, description: string): string {
-  const text = description.trim();
-  if (!text) return 'この点について、念のため確認しておくと安心です。';
-
-  if (category === '例外補正' || text.includes('false positive') || text.includes('通常慣行')) {
-    if (text.includes('バー') || text.includes('居酒屋') || text.includes('お通し') || text.includes('チャージ')) {
-      return 'バーや居酒屋では、お通しやチャージが普通にあるお店もあります。料金トラブルの話が一緒に出ていない限り、これだけで危ないとは見ません。';
-    }
-    if (text.includes('全国チェーン')) {
-      return 'チェーン店は口コミの付き方に偏りが出やすいので、評価の差だけで強く疑わないようにしています。';
-    }
-    if (text.includes('レビュー件数が少ない')) {
-      return '口コミがまだ少ないお店なので、星の偏りだけでは強く判断しないようにしています。';
-    }
-    if (text.includes('高級店') || text.includes('コース')) {
-      return '価格が高いこと自体は問題にせず、料金説明や会計の食い違いがあるかを見ています。';
-    }
-    return 'お店の種類によって口コミの付き方が変わるため、その点を割り引いて見ています。';
-  }
-
-  if (
-    text.includes('スタッフの接客態度にムラがある') ||
-    text.includes('組織的な問題というよりは個別のオペレーション上の課題')
-  ) {
-    return '接客にばらつきがあるという声があります。ただ、ぼったくりやサクラを強く疑う内容ではなさそうです。';
-  }
-
-  return text
-    .replace(/高リスク/g, '強く注意が必要')
-    .replace(/リスク/g, '注意点')
-    .replace(/シグナル/g, '気になる材料')
-    .replace(/補正/g, '考慮')
-    .replace(/乖離/g, '差')
-    .replace(/検出されませんでした/g, '見つかりませんでした')
-    .replace(/推奨します/g, 'おすすめします');
-}
-
 const AnalysisDashboard: FC<AnalysisDashboardProps> = ({
   data,
   onReset,
@@ -222,7 +71,6 @@ const AnalysisDashboard: FC<AnalysisDashboardProps> = ({
   const generatedAtText = formatGeneratedAt(data.meta.generatedAt);
   const sourceLinks = data.groundingUrls.filter((link) => link.uri);
   const mapUrl = buildGoogleMapsUrl(data);
-  const displayRisks = buildDisplayRisks(data, isSuspiciousDiff);
 
   return (
     <motion.section
@@ -334,28 +182,47 @@ const AnalysisDashboard: FC<AnalysisDashboardProps> = ({
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-5 border-b border-slate-100 bg-slate-50/50">
-            <h2 className="text-lg font-bold text-slate-800">チェックしたポイント</h2>
+            <h2 className="text-lg font-bold text-slate-800">判定詳細レポート</h2>
           </div>
           <div className="divide-y divide-slate-100">
-            {displayRisks.map((risk, index) => {
-              const style = RISK_STYLE[risk.riskLevel] || RISK_STYLE.medium;
-              return (
-                <div key={`${risk.category}-${index}`} className="p-5 flex gap-4">
-                  <div className="shrink-0 mt-1">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${style.icon}`}>
-                      <RiskIcon riskLevel={risk.riskLevel} />
+            {data.risks.length > 0 ? (
+              data.risks.map((risk, index) => {
+                const style = RISK_STYLE[risk.riskLevel] || RISK_STYLE.medium;
+                return (
+                  <div key={`${risk.category}-${index}`} className="p-5 flex gap-4">
+                    <div className="shrink-0 mt-1">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${style.icon}`}>
+                        <RiskIcon riskLevel={risk.riskLevel} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="font-bold text-slate-900">{risk.category}</h3>
+                        <span className={`px-2 py-0.5 text-xs font-bold rounded ${style.badge}`}>{style.label}</span>
+                      </div>
+                      <p className="text-slate-600 text-sm leading-relaxed">{risk.description}</p>
                     </div>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-bold text-slate-900">{risk.category}</h3>
-                      <span className={`px-2 py-0.5 text-xs font-bold rounded ${style.badge}`}>{style.label}</span>
-                    </div>
-                    <p className="text-slate-600 text-sm leading-relaxed">{risk.description}</p>
+                );
+              })
+            ) : (
+              <div className="p-5 flex gap-4">
+                <div className="shrink-0 mt-1">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                    <CheckCircle2 className="w-5 h-5" />
                   </div>
                 </div>
-              );
-            })}
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="font-bold text-slate-900">目立ったリスクなし</h3>
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded">安全</span>
+                  </div>
+                  <p className="text-slate-600 text-sm leading-relaxed">
+                    現時点で強いサクラ投稿の兆候は検出されませんでした。
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

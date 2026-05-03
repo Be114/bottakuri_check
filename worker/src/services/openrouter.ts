@@ -1,11 +1,4 @@
-import {
-  ANALYSIS_SCHEMA,
-  DEFAULT_OPENROUTER_MAX_TOKENS,
-  DEFAULT_OPENROUTER_WEB_MAX_RESULTS,
-  MAX_OPENROUTER_WEB_MAX_RESULTS,
-  OPENROUTER_API_TIMEOUT_MS,
-  SYSTEM_PROMPT,
-} from '../constants';
+import { ANALYSIS_SCHEMA, OPENROUTER_API_TIMEOUT_MS, SYSTEM_PROMPT } from '../constants';
 import {
   GroundingUrl,
   NearbyPlaceData,
@@ -17,7 +10,7 @@ import {
 } from '../types';
 import { fetchJsonWithTimeout } from '../utils/http';
 import { ApiHttpError } from '../utils/response';
-import { toIntegerInRange, toNonNegativeInt } from '../utils/validation';
+import { toNonNegativeInt } from '../utils/validation';
 
 export async function analyzeWithOpenRouter(
   query: string,
@@ -26,13 +19,7 @@ export async function analyzeWithOpenRouter(
   env: Env,
   reviewSampleLimit: number,
 ): Promise<{ report: Record<string, unknown>; citations: GroundingUrl[] }> {
-  const maxTokens = toNonNegativeInt(env.OPENROUTER_MAX_TOKENS, DEFAULT_OPENROUTER_MAX_TOKENS);
-  const webMaxResults = toIntegerInRange(
-    env.OPENROUTER_WEB_MAX_RESULTS,
-    DEFAULT_OPENROUTER_WEB_MAX_RESULTS,
-    1,
-    MAX_OPENROUTER_WEB_MAX_RESULTS,
-  );
+  const maxTokens = toNonNegativeInt(env.OPENROUTER_MAX_TOKENS, 1400);
 
   const reviewLines = place.reviews.length
     ? place.reviews
@@ -49,25 +36,19 @@ export async function analyzeWithOpenRouter(
 店舗名: ${place.name}
 住所: ${place.address}
 Google評価: ${place.googleRating} (${place.userRatingCount}件)
-ジャンル: ${place.genre || '不明'}
-Google primaryType: ${place.primaryType || '不明'}
-Google types/categories: ${[...(place.categories || []), ...(place.types || [])].join(', ') || '不明'}
-価格帯: ${place.priceLevel || '不明'}
 Google Maps URL: https://www.google.com/maps/place/?q=place_id:${place.placeId}
 
 直近レビュー要約(最大${reviewSampleLimit}件):
 ${reviewLines}
 
 実施タスク:
-1. Web情報(食べログ/Retty等)も参照し、Google評価との乖離を観察する
-2. レビュー本文上の危険語、会計・料金トラブル、客引き、過剰称賛文体、外部苦情、低評価レビューの具体性を componentSignals と evidence に構造化する
-3. sakuraScore は互換性のため0-100で返すが、最終判定には使われない可能性がある
-4. reviewDistributionは1-5星の割合を整数で返す。実データがない場合は推定として reviewDistributionSource=model_estimated を返す
-5. 料金・会計・客引きに関する具体的な苦情がある場合は evidence に入れる
-6. 単なる高価格、不味い、接客不満だけで billing_trouble にしない
-7. summaryは簡潔に返す
-8. 食べログ値は圧縮スケールとして補正し、estimatedRealRating はGoogle換算後の値を返す
-9. tabelog.com を確認できない場合、tabelogRating は null を返す
+1. Web情報(食べログ/Retty等)も参照し、Google評価との乖離を評価する
+2. サクラ疑いキーワードや不自然な文体を抽出する
+3. サクラ危険度(sakuraScore)を0-100で出す
+4. reviewDistributionは1-5星の割合を整数で返す
+5. summaryは簡潔に返す
+6. 食べログ値は圧縮スケールとして補正し、estimatedRealRating はGoogle換算後の値を返す
+7. tabelog.com を確認できない場合、tabelogRating は null を返す
 
 補正の参考アンカー(実測例):
 - サイゼリヤ 新宿西口: Google 3.6 / 食べログ 3.07
@@ -110,7 +91,7 @@ ${reviewLines}
           {
             id: 'web',
             engine: 'exa',
-            max_results: webMaxResults,
+            max_results: 2,
           },
         ],
       }),
@@ -171,7 +152,7 @@ export async function analyzeNearbyBatchWithOpenRouter(
   modelId: string,
   env: Env,
 ): Promise<Record<string, unknown>> {
-  const maxTokens = Math.min(toNonNegativeInt(env.OPENROUTER_MAX_TOKENS, DEFAULT_OPENROUTER_MAX_TOKENS), 2000);
+  const maxTokens = Math.min(toNonNegativeInt(env.OPENROUTER_MAX_TOKENS, 1400), 1200);
   const candidates = places
     .map(
       (place, index) =>

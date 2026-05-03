@@ -40,7 +40,7 @@ describe('worker logic utilities', () => {
   it('looksLikeChainStore uses defaults and supports environment overrides', () => {
     expect(looksLikeChainStore('サイゼリヤ 新宿西口店')).toBe(true);
     expect(looksLikeChainStore('個人店', '個人店,テストチェーン')).toBe(true);
-    expect(looksLikeChainStore('サイゼリヤ 新宿西口店', '個人店,テストチェーン')).toBe(true);
+    expect(looksLikeChainStore('サイゼリヤ 新宿西口店', '個人店,テストチェーン')).toBe(false);
   });
 
   it('keeps specific Google food place types for nearby genre filters', () => {

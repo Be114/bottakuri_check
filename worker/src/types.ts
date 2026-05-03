@@ -12,7 +12,6 @@ export interface Env {
   PER_MINUTE_LIMIT?: string;
   PER_DAY_NEW_ANALYSIS_LIMIT?: string;
   OPENROUTER_MAX_TOKENS?: string;
-  OPENROUTER_WEB_MAX_RESULTS?: string;
   REVIEW_SAMPLE_LIMIT?: string;
   DAY_ROLLOVER_TIMEZONE?: string;
   CHAIN_STORE_KEYWORDS?: string;
@@ -39,73 +38,6 @@ export interface ReviewDistribution {
   percentage: number;
 }
 
-export type ReviewDistributionSource =
-  | 'google_aggregate'
-  | 'google_review_sample'
-  | 'external_site'
-  | 'model_estimated'
-  | 'unavailable';
-
-export interface AnalysisEvidence {
-  category:
-    | 'billing_trouble'
-    | 'price_opacity'
-    | 'catch_sales'
-    | 'fake_praise'
-    | 'review_distribution'
-    | 'rating_gap'
-    | 'external_reputation'
-    | 'low_information'
-    | 'place_exception'
-    | 'other';
-  severity: number;
-  source: 'google_review_sample' | 'external_site' | 'model' | 'deterministic_rule' | 'place_metadata';
-  snippet?: string;
-  description: string;
-}
-
-export interface ComponentSignals {
-  reviewTextRisk: number;
-  fakePraiseRisk: number;
-  externalComplaintRisk: number;
-  priceOpacityRisk: number;
-  catchSalesRisk: number;
-  billingTroubleRisk: number;
-  starPatternRiskObservation: number;
-  criticalComplaintCount: number;
-  explicitBillingComplaintCount: number;
-  recentLowStarBillingComplaintCount: number;
-}
-
-export interface ComponentScores {
-  reviewTextRisk: number;
-  ratingGapRisk: number;
-  starPatternRisk: number;
-  externalComplaintRisk: number;
-  fakePraiseRisk: number;
-  lowInformationRisk: number;
-}
-
-export type ExceptionPolicyKind =
-  | 'none'
-  | 'national_chain'
-  | 'regional_chain'
-  | 'franchise'
-  | 'public_facility'
-  | 'hotel_or_department_restaurant'
-  | 'low_review_new_store'
-  | 'premium_or_course_restaurant'
-  | 'bar_or_izakaya_standard_charge'
-  | 'ambiguous_place_match';
-
-export interface ExceptionPolicyResult {
-  applied: boolean;
-  kind: ExceptionPolicyKind;
-  reason: string;
-  originalScore: number;
-  adjustedScore: number;
-}
-
 export interface GroundingUrl {
   title: string;
   uri: string;
@@ -129,36 +61,19 @@ export interface AnalysisReport {
   };
   sakuraScore: number;
   estimatedRealRating: number;
-  estimatedRealRatingSource?: 'tabelog' | 'model_external' | 'model_only' | 'fallback';
   googleRating: number;
   tabelogRating?: number;
   verdict: '安全' | '注意' | '危険';
-  confidence?: 'low' | 'medium' | 'high';
-  confidenceReasons?: string[];
-  componentScores?: ComponentScores;
-  scoringDebug?: {
-    rawModelScore?: number;
-    deterministicScore: number;
-    scoreBeforeException: number;
-    finalScore: number;
-    appliedFloors: string[];
-    appliedCaps: string[];
-    appliedMultipliers: string[];
-  };
-  exceptionPolicy?: ExceptionPolicyResult;
   risks: AnalysisRisk[];
   suspiciousKeywordsFound: string[];
   summary: string;
   reviewDistribution: ReviewDistribution[];
-  reviewDistributionSource?: ReviewDistributionSource;
-  evidence?: AnalysisEvidence[];
   groundingUrls: GroundingUrl[];
   meta: {
     cached: boolean;
     model: string;
     generatedAt: string;
     budgetState: BudgetState;
-    scoringVersion?: number;
   };
 }
 
@@ -221,8 +136,6 @@ export interface PlaceData {
   priceLevel?: PlacePriceLevel;
   priceRange?: PlacePriceRange;
   reviews: PlaceReview[];
-  reviewSampleCount?: number;
-  reviewDistributionSample?: ReviewDistribution[];
   location?: {
     lat: number;
     lng: number;

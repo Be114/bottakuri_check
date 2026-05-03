@@ -1,13 +1,5 @@
 import { PLACES_API_TIMEOUT_MS } from '../constants';
-import {
-  PlaceData,
-  PlacePriceLevel,
-  PlacePriceRange,
-  PlaceReview,
-  Env,
-  NearbyPlaceData,
-  ReviewDistribution,
-} from '../types';
+import { PlaceData, PlacePriceLevel, PlacePriceRange, PlaceReview, Env, NearbyPlaceData } from '../types';
 import { fetchJsonWithTimeout } from '../utils/http';
 import { ApiHttpError } from '../utils/response';
 import { clampNumber, toFiniteNumber } from '../utils/validation';
@@ -173,7 +165,6 @@ export async function fetchPlaceData(
       }),
     )
     .filter((review) => review.text.length > 0);
-  const reviewDistributionSample = buildDistributionFromReviewSample(reviews);
 
   return {
     placeId,
@@ -199,8 +190,6 @@ export async function fetchPlaceData(
       ? { priceRange: normalizePriceRange(detailsJson.priceRange || candidate.priceRange) }
       : {}),
     reviews,
-    reviewSampleCount: reviews.length,
-    ...(reviewDistributionSample.length > 0 ? { reviewDistributionSample } : {}),
     location: normalizePlaceLocation(detailsJson.location, candidate.location),
   };
 }
@@ -340,7 +329,6 @@ export async function fetchPlaceDetailsById(
       }),
     )
     .filter((review) => review.text.length > 0);
-  const reviewDistributionSample = buildDistributionFromReviewSample(reviews);
 
   return {
     placeId: detailsJson.id || placeId,
@@ -363,31 +351,8 @@ export async function fetchPlaceDetailsById(
       ? { priceRange: normalizePriceRange(detailsJson.priceRange) || fallback.priceRange }
       : {}),
     reviews,
-    reviewSampleCount: reviews.length,
-    ...(reviewDistributionSample.length > 0 ? { reviewDistributionSample } : {}),
     location: normalizePlaceLocation(detailsJson.location) || fallback.location,
   };
-}
-
-function buildDistributionFromReviewSample(reviews: PlaceReview[]): ReviewDistribution[] {
-  const counts = new Map<number, number>();
-  for (const review of reviews) {
-    const star = Math.round(review.rating);
-    if (star < 1 || star > 5) continue;
-    counts.set(star, (counts.get(star) || 0) + 1);
-  }
-
-  const total = Array.from(counts.values()).reduce((sum, value) => sum + value, 0);
-  if (total <= 0) return [];
-
-  const distribution = [1, 2, 3, 4, 5].map((star) => ({
-    star,
-    percentage: Math.round(((counts.get(star) || 0) / total) * 100),
-  }));
-  const diff = 100 - distribution.reduce((sum, item) => sum + item.percentage, 0);
-  const target = distribution.find((item) => item.star === 5) || distribution[distribution.length - 1];
-  target.percentage = Math.max(0, target.percentage + diff);
-  return distribution;
 }
 
 export function buildNearbyGenreFilter(

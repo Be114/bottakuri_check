@@ -309,153 +309,6 @@ components:
       required:
         - star
         - percentage
-    ComponentScores:
-      type: object
-      additionalProperties: false
-      properties:
-        reviewTextRisk:
-          type: integer
-          minimum: 0
-          maximum: 100
-        ratingGapRisk:
-          type: integer
-          minimum: 0
-          maximum: 100
-        starPatternRisk:
-          type: integer
-          minimum: 0
-          maximum: 100
-        externalComplaintRisk:
-          type: integer
-          minimum: 0
-          maximum: 100
-        fakePraiseRisk:
-          type: integer
-          minimum: 0
-          maximum: 100
-        lowInformationRisk:
-          type: integer
-          minimum: 0
-          maximum: 100
-      required:
-        - reviewTextRisk
-        - ratingGapRisk
-        - starPatternRisk
-        - externalComplaintRisk
-        - fakePraiseRisk
-        - lowInformationRisk
-    ScoringDebug:
-      type: object
-      additionalProperties: false
-      properties:
-        rawModelScore:
-          type: integer
-          minimum: 0
-          maximum: 100
-        deterministicScore:
-          type: integer
-          minimum: 0
-          maximum: 100
-        scoreBeforeException:
-          type: integer
-          minimum: 0
-          maximum: 100
-        finalScore:
-          type: integer
-          minimum: 0
-          maximum: 100
-        appliedFloors:
-          type: array
-          items:
-            type: string
-        appliedCaps:
-          type: array
-          items:
-            type: string
-        appliedMultipliers:
-          type: array
-          items:
-            type: string
-      required:
-        - deterministicScore
-        - scoreBeforeException
-        - finalScore
-        - appliedFloors
-        - appliedCaps
-        - appliedMultipliers
-    ExceptionPolicy:
-      type: object
-      additionalProperties: false
-      properties:
-        applied:
-          type: boolean
-        kind:
-          type: string
-          enum:
-            - none
-            - national_chain
-            - regional_chain
-            - franchise
-            - public_facility
-            - hotel_or_department_restaurant
-            - low_review_new_store
-            - premium_or_course_restaurant
-            - bar_or_izakaya_standard_charge
-            - ambiguous_place_match
-        reason:
-          type: string
-        originalScore:
-          type: integer
-          minimum: 0
-          maximum: 100
-        adjustedScore:
-          type: integer
-          minimum: 0
-          maximum: 100
-      required:
-        - applied
-        - kind
-        - reason
-        - originalScore
-        - adjustedScore
-    AnalysisEvidence:
-      type: object
-      additionalProperties: false
-      properties:
-        category:
-          type: string
-          enum:
-            - billing_trouble
-            - price_opacity
-            - catch_sales
-            - fake_praise
-            - review_distribution
-            - rating_gap
-            - external_reputation
-            - low_information
-            - place_exception
-            - other
-        severity:
-          type: integer
-          minimum: 0
-          maximum: 100
-        source:
-          type: string
-          enum:
-            - google_review_sample
-            - external_site
-            - model
-            - deterministic_rule
-            - place_metadata
-        snippet:
-          type: string
-        description:
-          type: string
-      required:
-        - category
-        - severity
-        - source
-        - description
     GroundingUrl:
       type: object
       additionalProperties: false
@@ -483,8 +336,6 @@ components:
         budgetState:
           type: string
           enum: [ok, capped]
-        scoringVersion:
-          type: integer
       required:
         - cached
         - model
@@ -528,9 +379,6 @@ components:
           type: number
           minimum: 1
           maximum: 5
-        estimatedRealRatingSource:
-          type: string
-          enum: [tabelog, model_external, model_only, fallback]
         googleRating:
           type: number
           minimum: 0
@@ -542,19 +390,6 @@ components:
         verdict:
           type: string
           enum: [安全, 注意, 危険]
-        confidence:
-          type: string
-          enum: [low, medium, high]
-        confidenceReasons:
-          type: array
-          items:
-            type: string
-        componentScores:
-          $ref: '#/components/schemas/ComponentScores'
-        scoringDebug:
-          $ref: '#/components/schemas/ScoringDebug'
-        exceptionPolicy:
-          $ref: '#/components/schemas/ExceptionPolicy'
         risks:
           type: array
           maxItems: 8
@@ -572,14 +407,6 @@ components:
           maxItems: 5
           items:
             $ref: '#/components/schemas/ReviewDistribution'
-        reviewDistributionSource:
-          type: string
-          enum: [google_aggregate, google_review_sample, external_site, model_estimated, unavailable]
-        evidence:
-          type: array
-          maxItems: 12
-          items:
-            $ref: '#/components/schemas/AnalysisEvidence'
         groundingUrls:
           type: array
           maxItems: 10
