@@ -1,4 +1,11 @@
-import { ANALYSIS_SCHEMA, OPENROUTER_API_TIMEOUT_MS, SYSTEM_PROMPT } from '../constants';
+import {
+  ANALYSIS_SCHEMA,
+  DEFAULT_OPENROUTER_MAX_TOKENS,
+  DEFAULT_OPENROUTER_WEB_MAX_RESULTS,
+  MAX_OPENROUTER_WEB_MAX_RESULTS,
+  OPENROUTER_API_TIMEOUT_MS,
+  SYSTEM_PROMPT,
+} from '../constants';
 import {
   GroundingUrl,
   NearbyPlaceData,
@@ -10,7 +17,7 @@ import {
 } from '../types';
 import { fetchJsonWithTimeout } from '../utils/http';
 import { ApiHttpError } from '../utils/response';
-import { toNonNegativeInt } from '../utils/validation';
+import { toIntegerInRange, toNonNegativeInt } from '../utils/validation';
 
 export async function analyzeWithOpenRouter(
   query: string,
@@ -19,7 +26,13 @@ export async function analyzeWithOpenRouter(
   env: Env,
   reviewSampleLimit: number,
 ): Promise<{ report: Record<string, unknown>; citations: GroundingUrl[] }> {
-  const maxTokens = toNonNegativeInt(env.OPENROUTER_MAX_TOKENS, 2000);
+  const maxTokens = toNonNegativeInt(env.OPENROUTER_MAX_TOKENS, DEFAULT_OPENROUTER_MAX_TOKENS);
+  const webMaxResults = toIntegerInRange(
+    env.OPENROUTER_WEB_MAX_RESULTS,
+    DEFAULT_OPENROUTER_WEB_MAX_RESULTS,
+    1,
+    MAX_OPENROUTER_WEB_MAX_RESULTS,
+  );
 
   const reviewLines = place.reviews.length
     ? place.reviews
@@ -97,7 +110,7 @@ ${reviewLines}
           {
             id: 'web',
             engine: 'exa',
-            max_results: 2,
+            max_results: webMaxResults,
           },
         ],
       }),
@@ -158,7 +171,7 @@ export async function analyzeNearbyBatchWithOpenRouter(
   modelId: string,
   env: Env,
 ): Promise<Record<string, unknown>> {
-  const maxTokens = Math.min(toNonNegativeInt(env.OPENROUTER_MAX_TOKENS, 1400), 1200);
+  const maxTokens = Math.min(toNonNegativeInt(env.OPENROUTER_MAX_TOKENS, DEFAULT_OPENROUTER_MAX_TOKENS), 2000);
   const candidates = places
     .map(
       (place, index) =>

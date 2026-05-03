@@ -1,4 +1,4 @@
-import { MODEL_ID, ONE_DAY_SECONDS } from '../constants';
+import { MAX_REVIEW_SAMPLE_LIMIT, MODEL_ID, ONE_DAY_SECONDS } from '../constants';
 import { normalizeAnalysis, isAnalysisReport } from '../domain/normalization';
 import { computeLowInformationRisk, deriveVerdict } from '../domain/scoring';
 import {
@@ -318,7 +318,7 @@ async function analyzeNearbyPlacesIndividually(
     env.NEARBY_ANALYSIS_REVIEW_SAMPLE_LIMIT,
     resolveReviewSampleLimit(env.REVIEW_SAMPLE_LIMIT),
     1,
-    12,
+    MAX_REVIEW_SAMPLE_LIMIT,
   );
 
   const results = await mapWithConcurrency(places, concurrency, async (place) => {

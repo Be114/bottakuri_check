@@ -12,6 +12,7 @@ export interface Env {
   PER_MINUTE_LIMIT?: string;
   PER_DAY_NEW_ANALYSIS_LIMIT?: string;
   OPENROUTER_MAX_TOKENS?: string;
+  OPENROUTER_WEB_MAX_RESULTS?: string;
   REVIEW_SAMPLE_LIMIT?: string;
   DAY_ROLLOVER_TIMEZONE?: string;
   CHAIN_STORE_KEYWORDS?: string;

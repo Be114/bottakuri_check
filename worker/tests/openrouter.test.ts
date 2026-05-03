@@ -53,8 +53,66 @@ describe('OpenRouter service', () => {
     await analyzeWithOpenRouter('テスト店', buildPlace(), 'google/gemini-3.1-flash-lite-preview', env, 1);
 
     expect(requests[0]?.model).toBe(OPENROUTER_MODEL_ID);
+    expect(requests[0]?.max_tokens).toBe(3200);
     expect(requests[0]?.reasoning).toEqual({ effort: 'none', exclude: true });
+    expect(requests[0]?.plugins).toEqual([{ id: 'web', engine: 'exa', max_results: 5 }]);
     expect(requestHeaders[0]?.get('X-Title')).toBe('Bottakuri Checker');
+  });
+
+  it('allows OpenRouter web result count to be configured within bounds', async () => {
+    const { env } = createMockEnv({ OPENROUTER_WEB_MAX_RESULTS: '7' });
+    const requests: Record<string, unknown>[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        requests.push(JSON.parse(String(init?.body || '{}')) as Record<string, unknown>);
+        return Response.json({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  placeName: 'テスト店',
+                  address: '東京都新宿区',
+                  sakuraScore: 10,
+                  estimatedRealRating: 4.1,
+                  googleRating: 4.2,
+                  tabelogRating: null,
+                  verdict: '安全',
+                  componentSignals: {
+                    reviewTextRisk: 0,
+                    fakePraiseRisk: 0,
+                    externalComplaintRisk: 0,
+                    priceOpacityRisk: 0,
+                    catchSalesRisk: 0,
+                    billingTroubleRisk: 0,
+                    starPatternRiskObservation: 0,
+                    criticalComplaintCount: 0,
+                    explicitBillingComplaintCount: 0,
+                    recentLowStarBillingComplaintCount: 0,
+                  },
+                  evidence: [],
+                  risks: [{ category: '総合', riskLevel: 'low', description: '目立ったリスクはありません。' }],
+                  suspiciousKeywordsFound: [],
+                  summary: '安定しています。',
+                  reviewDistribution: [
+                    { star: 1, percentage: 5 },
+                    { star: 2, percentage: 10 },
+                    { star: 3, percentage: 20 },
+                    { star: 4, percentage: 35 },
+                    { star: 5, percentage: 30 },
+                  ],
+                  reviewDistributionSource: 'model_estimated',
+                }),
+              },
+            },
+          ],
+        });
+      }),
+    );
+
+    await analyzeWithOpenRouter('テスト店', buildPlace(), 'google/gemini-3.1-flash-lite-preview', env, 1);
+
+    expect(requests[0]?.plugins).toEqual([{ id: 'web', engine: 'exa', max_results: 7 }]);
   });
 
   it('sanitizes non-ASCII OpenRouter title headers for Workers', async () => {
