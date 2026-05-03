@@ -59,6 +59,90 @@ function RiskIcon({ riskLevel }: { riskLevel: AnalysisRisk['riskLevel'] }) {
   return <AlertTriangle className="w-5 h-5" />;
 }
 
+function toDisplayRisk(risk: AnalysisRisk): AnalysisRisk {
+  return {
+    ...risk,
+    category: formatRiskCategory(risk.category),
+    description: softenRiskDescription(risk.category, risk.description),
+  };
+}
+
+function formatRiskCategory(category: string): string {
+  const normalized = category.trim().toLowerCase();
+  const labels: Record<string, string> = {
+    service_quality: '接客について',
+    service: '接客について',
+    pricing: '料金について',
+    price: '料金について',
+    billing: '会計について',
+    billing_trouble: '会計について',
+    price_opacity: '料金のわかりやすさ',
+    catch_sales: '客引き・案内について',
+    fake_praise: '口コミの雰囲気',
+    review_distribution: '口コミの偏り',
+    rating_gap: '評価の差',
+    external_reputation: '外部サイトの評判',
+    low_information: '情報の少なさ',
+    review_text: '口コミ本文',
+    star_pattern: '口コミの偏り',
+    exception_policy: 'お店のタイプ',
+    例外補正: 'お店のタイプも踏まえました',
+    簡易評価: 'ざっくり確認',
+    総合評価: '全体として',
+    レビュー本文: '口コミ本文',
+    評価乖離: '評価の差',
+    評価分布: '口コミの偏り',
+    外部評判: '外部サイトの評判',
+  };
+
+  if (labels[category]) return labels[category];
+  if (labels[normalized]) return labels[normalized];
+
+  const humanized = category
+    .replace(/[_-]+/g, ' ')
+    .replace(/\brisk\b/gi, '')
+    .replace(/\bquality\b/gi, '品質')
+    .trim();
+  return humanized || '気になった点';
+}
+
+function softenRiskDescription(category: string, description: string): string {
+  const text = description.trim();
+  if (!text) return 'この点について、念のため確認しておくと安心です。';
+
+  if (category === '例外補正' || text.includes('false positive') || text.includes('通常慣行')) {
+    if (text.includes('バー') || text.includes('居酒屋') || text.includes('お通し') || text.includes('チャージ')) {
+      return 'バーや居酒屋では、お通しやチャージが普通にあるお店もあります。料金トラブルの話が一緒に出ていない限り、これだけで危ないとは見ません。';
+    }
+    if (text.includes('全国チェーン')) {
+      return 'チェーン店は口コミの付き方に偏りが出やすいので、評価の差だけで強く疑わないようにしています。';
+    }
+    if (text.includes('レビュー件数が少ない')) {
+      return '口コミがまだ少ないお店なので、星の偏りだけでは強く判断しないようにしています。';
+    }
+    if (text.includes('高級店') || text.includes('コース')) {
+      return '価格が高いこと自体は問題にせず、料金説明や会計の食い違いがあるかを見ています。';
+    }
+    return 'お店の種類によって口コミの付き方が変わるため、その点を割り引いて見ています。';
+  }
+
+  if (
+    text.includes('スタッフの接客態度にムラがある') ||
+    text.includes('組織的な問題というよりは個別のオペレーション上の課題')
+  ) {
+    return '接客にばらつきがあるという声があります。ただ、ぼったくりやサクラを強く疑う内容ではなさそうです。';
+  }
+
+  return text
+    .replace(/高リスク/g, '強く注意が必要')
+    .replace(/リスク/g, '注意点')
+    .replace(/シグナル/g, '気になる材料')
+    .replace(/補正/g, '考慮')
+    .replace(/乖離/g, '差')
+    .replace(/検出されませんでした/g, '見つかりませんでした')
+    .replace(/推奨します/g, 'おすすめします');
+}
+
 const AnalysisDashboard: FC<AnalysisDashboardProps> = ({
   data,
   onReset,
@@ -182,11 +266,12 @@ const AnalysisDashboard: FC<AnalysisDashboardProps> = ({
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-5 border-b border-slate-100 bg-slate-50/50">
-            <h2 className="text-lg font-bold text-slate-800">判定詳細レポート</h2>
+            <h2 className="text-lg font-bold text-slate-800">チェックしたポイント</h2>
           </div>
           <div className="divide-y divide-slate-100">
             {data.risks.length > 0 ? (
               data.risks.map((risk, index) => {
+                const displayRisk = toDisplayRisk(risk);
                 const style = RISK_STYLE[risk.riskLevel] || RISK_STYLE.medium;
                 return (
                   <div key={`${risk.category}-${index}`} className="p-5 flex gap-4">
@@ -197,10 +282,10 @@ const AnalysisDashboard: FC<AnalysisDashboardProps> = ({
                     </div>
                     <div>
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-bold text-slate-900">{risk.category}</h3>
+                        <h3 className="font-bold text-slate-900">{displayRisk.category}</h3>
                         <span className={`px-2 py-0.5 text-xs font-bold rounded ${style.badge}`}>{style.label}</span>
                       </div>
-                      <p className="text-slate-600 text-sm leading-relaxed">{risk.description}</p>
+                      <p className="text-slate-600 text-sm leading-relaxed">{displayRisk.description}</p>
                     </div>
                   </div>
                 );

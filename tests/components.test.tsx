@@ -56,8 +56,8 @@ describe('AnalysisDashboard', () => {
     expect(screen.getByText('検証店舗')).toBeInTheDocument();
     expect(screen.getByText('東京都新宿区')).toBeInTheDocument();
     expect(screen.getByText('サクラ危険度')).toBeInTheDocument();
-    expect(screen.getByText('判定詳細レポート')).toBeInTheDocument();
-    expect(screen.getByText('目立ったリスクはありません。')).toBeInTheDocument();
+    expect(screen.getByText('チェックしたポイント')).toBeInTheDocument();
+    expect(screen.getByText('目立った注意点はありません。')).toBeInTheDocument();
 
     const addressLink = screen.getByRole('link', { name: /東京都新宿区/ });
     expect(addressLink).toHaveAttribute('href', expect.stringContaining('https://www.google.com/maps/search/?api=1'));
