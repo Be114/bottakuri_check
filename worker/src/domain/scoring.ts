@@ -253,7 +253,7 @@ export function computeStarPatternRisk(
   const p5 = percentOf(5) / 100;
 
   const fiveStarSpike = clampNumber(((p5 - 0.7) / 0.2) * 100, 0, 100);
-  const uShape = clampNumber((((p1 + p5) - (p2 + p3 + p4) - 0.2) / 0.4) * 100, 0, 100);
+  const uShape = clampNumber(((p1 + p5 - (p2 + p3 + p4) - 0.2) / 0.4) * 100, 0, 100);
   const middleSuppression = clampNumber(((0.18 - (p2 + p3 + p4)) / 0.18) * 100, 0, 100);
 
   let cap = sourceRiskCap(source);
@@ -291,7 +291,8 @@ export function computeExternalComplaintRisk(signals: ComponentSignals, evidence
         item.category === 'external_reputation'),
   );
   const maxExternalSeverity = externalEvidence.reduce((max, item) => Math.max(max, item.severity), 0);
-  const base = externalEvidence.length > 0 ? signals.externalComplaintRisk : Math.min(signals.externalComplaintRisk, 60);
+  const base =
+    externalEvidence.length > 0 ? signals.externalComplaintRisk : Math.min(signals.externalComplaintRisk, 60);
   return clampScore(Math.max(base, maxExternalSeverity));
 }
 
@@ -323,7 +324,10 @@ export function computeDeterministicSakuraScore(params: {
   );
   const rawExternalComplaintRisk = computeExternalComplaintRisk(params.signals, params.evidence);
   const rawFakePraiseRisk = clampScore(params.signals.fakePraiseRisk);
-  const lowInformationRisk = computeLowInformationRisk(params.context.userRatingCount, params.context.reviewSampleCount);
+  const lowInformationRisk = computeLowInformationRisk(
+    params.context.userRatingCount,
+    params.context.reviewSampleCount,
+  );
 
   const reviewTextRisk = rawReviewTextRisk;
   const externalComplaintRisk = rawExternalComplaintRisk;
@@ -358,6 +362,11 @@ export function computeDeterministicSakuraScore(params: {
     score += 8;
   }
 
+  const scoreBeforeContrast = score;
+  score = applyScoreContrast(score, componentScores, params.signals);
+  if (score !== scoreBeforeContrast) {
+    appliedMultipliers.push('contrast_spread');
+  }
   score = clampScore(score);
   const deterministicScore = score;
 
@@ -458,6 +467,32 @@ export function computeDeterministicSakuraScore(params: {
     appliedCaps,
     appliedMultipliers,
   };
+}
+
+function applyScoreContrast(score: number, componentScores: ComponentScores, signals: ComponentSignals): number {
+  let adjusted = score;
+  const activeSignals = [
+    componentScores.reviewTextRisk >= 35,
+    componentScores.ratingGapRisk >= 35,
+    componentScores.starPatternRisk >= 25,
+    componentScores.externalComplaintRisk >= 35,
+    componentScores.fakePraiseRisk >= 55,
+  ].filter(Boolean).length;
+
+  if (score >= 62) adjusted += 12;
+  else if (score >= 48) adjusted += 9;
+  else if (score >= 35) adjusted += 6;
+  else if (score <= 18 && activeSignals === 0) adjusted -= 5;
+
+  if (activeSignals >= 3) adjusted += 8;
+  else if (activeSignals >= 2) adjusted += 5;
+
+  if (componentScores.reviewTextRisk >= 55 && componentScores.ratingGapRisk >= 45) adjusted += 6;
+  if (componentScores.reviewTextRisk >= 45 && componentScores.externalComplaintRisk >= 45) adjusted += 6;
+  if (componentScores.starPatternRisk >= 35 && componentScores.fakePraiseRisk >= 55) adjusted += 4;
+  if (signals.criticalComplaintCount >= 1) adjusted += 4;
+
+  return adjusted;
 }
 
 export function hasCriticalEvidence(signals: ComponentSignals, componentScores: ComponentScores): boolean {
@@ -621,9 +656,21 @@ function looksLikePublicFacility(context: ScoringContext): boolean {
 
 function looksLikeHotelOrDepartmentRestaurant(context: ScoringContext): boolean {
   const text = contextText(context);
-  return ['ホテル', 'hotel', '百貨店', 'デパート', 'モール', 'mall', '駅ビル', 'ルミネ', 'アトレ', 'パルコ', 'parco', 'イオン', 'aeon'].some(
-    (keyword) => text.includes(keyword),
-  );
+  return [
+    'ホテル',
+    'hotel',
+    '百貨店',
+    'デパート',
+    'モール',
+    'mall',
+    '駅ビル',
+    'ルミネ',
+    'アトレ',
+    'パルコ',
+    'parco',
+    'イオン',
+    'aeon',
+  ].some((keyword) => text.includes(keyword));
 }
 
 function looksLikePremiumOrCourseRestaurant(context: ScoringContext): boolean {

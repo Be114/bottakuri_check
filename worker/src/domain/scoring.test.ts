@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ComponentSignals, ReviewDistribution } from '../types';
-import {
-  ScoringContext,
-  computeDeterministicSakuraScore,
-  computeStarPatternRisk,
-  deriveVerdict,
-} from './scoring';
+import { ScoringContext, computeDeterministicSakuraScore, computeStarPatternRisk, deriveVerdict } from './scoring';
 
 describe('deterministic sakura scoring', () => {
   it('floors the score for two explicit billing complaints', () => {
@@ -144,6 +139,30 @@ describe('deterministic sakura scoring', () => {
 
     expect(result.appliedFloors).toContain('billing_complaint_with_price_opacity');
     expect(result.finalScore).toBeGreaterThanOrEqual(40);
+  });
+
+  it('spreads scores upward when multiple moderate signals align', () => {
+    const result = computeDeterministicSakuraScore({
+      signals: makeSignals({
+        billingTroubleRisk: 55,
+        priceOpacityRisk: 45,
+        catchSalesRisk: 35,
+        fakePraiseRisk: 65,
+        externalComplaintRisk: 45,
+      }),
+      evidence: [
+        { category: 'external_reputation', severity: 45, source: 'external_site', description: '外部評判に注意点' },
+      ],
+      reviewDistribution: normalDistribution(),
+      context: makeContext({
+        googleRating: 4.7,
+        estimatedRealRating: 3.7,
+        estimatedRealRatingSource: 'tabelog',
+      }),
+    });
+
+    expect(result.finalScore).toBeGreaterThanOrEqual(55);
+    expect(result.appliedMultipliers).toContain('contrast_spread');
   });
 
   it('caps model-estimated distribution risk', () => {
