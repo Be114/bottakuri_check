@@ -42,9 +42,9 @@ describe('ReviewChart', () => {
     expect(screen.getByText('★1')).toBeInTheDocument();
     expect(screen.getByText('★3')).toBeInTheDocument();
     expect(screen.getByText('★5')).toBeInTheDocument();
-    expect(screen.getByText('0%')).toBeInTheDocument();
-    expect(screen.getByText('25%')).toBeInTheDocument();
-    expect(screen.getByText('100%')).toBeInTheDocument();
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
+    expect(screen.queryByText('100%')).not.toBeInTheDocument();
+    expect(screen.getAllByText('3%').length).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -57,6 +57,8 @@ describe('AnalysisDashboard', () => {
     expect(screen.getByText('東京都新宿区')).toBeInTheDocument();
     expect(screen.getByText('サクラ危険度')).toBeInTheDocument();
     expect(screen.getByText('チェックしたポイント')).toBeInTheDocument();
+    expect(screen.getByText('レビュー内容')).toBeInTheDocument();
+    expect(screen.getByText('評価の偏り')).toBeInTheDocument();
     expect(screen.getByText('目立った注意点はありません。')).toBeInTheDocument();
 
     const addressLink = screen.getByRole('link', { name: /東京都新宿区/ });

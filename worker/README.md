@@ -52,7 +52,7 @@ npm run dev
 - `PER_MINUTE_LIMIT`: IP単位の1分あたり制限
 - `PER_DAY_NEW_ANALYSIS_LIMIT`: IP単位の1日新規分析上限
 - `OPENROUTER_MAX_TOKENS`: 応答トークン上限
-- `OPENROUTER_WEB_MAX_RESULTS`: OpenRouter web plugin の検索結果数（推奨: 5）
+- `OPENROUTER_WEB_MAX_RESULTS`: OpenRouter web plugin の検索結果数（推奨: 3）
 - `REVIEW_SAMPLE_LIMIT`: Placesレビューの参照件数（推奨: 12）
 - `DAY_ROLLOVER_TIMEZONE`: 日次制限の切替タイムゾーン（例: `Asia/Tokyo`）
 - `CHAIN_STORE_KEYWORDS`: チェーン店判定キーワード（任意、カンマ区切り）

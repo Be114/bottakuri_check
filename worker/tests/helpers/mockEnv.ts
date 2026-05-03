@@ -210,7 +210,7 @@ export function createMockEnv(overrides: Partial<Env> = {}): {
     PER_MINUTE_LIMIT: '5',
     PER_DAY_NEW_ANALYSIS_LIMIT: '20',
     OPENROUTER_MAX_TOKENS: '3200',
-    OPENROUTER_WEB_MAX_RESULTS: '5',
+    OPENROUTER_WEB_MAX_RESULTS: '3',
     REVIEW_SAMPLE_LIMIT: '12',
     DAY_ROLLOVER_TIMEZONE: 'Asia/Tokyo',
     OPENROUTER_SITE_URL: 'http://localhost:3000',

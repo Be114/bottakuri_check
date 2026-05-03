@@ -55,11 +55,11 @@ describe('OpenRouter service', () => {
     expect(requests[0]?.model).toBe(OPENROUTER_MODEL_ID);
     expect(requests[0]?.max_tokens).toBe(3200);
     expect(requests[0]?.reasoning).toEqual({ effort: 'none', exclude: true });
-    expect(requests[0]?.plugins).toEqual([{ id: 'web', engine: 'exa', max_results: 5 }]);
+    expect(requests[0]?.plugins).toEqual([{ id: 'web', engine: 'exa', max_results: 3 }]);
     expect(requestHeaders[0]?.get('X-Title')).toBe('Bottakuri Checker');
   });
 
-  it('allows OpenRouter web result count to be configured within bounds', async () => {
+  it('caps OpenRouter web result count at the configured speed-focused maximum', async () => {
     const { env } = createMockEnv({ OPENROUTER_WEB_MAX_RESULTS: '7' });
     const requests: Record<string, unknown>[] = [];
     vi.stubGlobal(
@@ -112,7 +112,7 @@ describe('OpenRouter service', () => {
 
     await analyzeWithOpenRouter('テスト店', buildPlace(), 'google/gemini-3.1-flash-lite-preview', env, 1);
 
-    expect(requests[0]?.plugins).toEqual([{ id: 'web', engine: 'exa', max_results: 7 }]);
+    expect(requests[0]?.plugins).toEqual([{ id: 'web', engine: 'exa', max_results: 3 }]);
   });
 
   it('sanitizes non-ASCII OpenRouter title headers for Workers', async () => {

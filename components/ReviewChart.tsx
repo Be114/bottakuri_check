@@ -5,16 +5,56 @@ interface ReviewChartProps {
 }
 
 const EMPTY_DISTRIBUTION = [1, 2, 3, 4, 5].map((star) => ({ star, percentage: 0 }));
+const PRIOR_DISTRIBUTION = new Map([
+  [1, 8],
+  [2, 10],
+  [3, 22],
+  [4, 34],
+  [5, 26],
+]);
+const MIN_VISIBLE_PERCENTAGE = 3;
 
 function normalizeDistribution(data: ReviewChartProps['data']) {
   const source = data.length > 0 ? data : EMPTY_DISTRIBUTION;
-  return [...source]
-    .filter((item) => Number.isFinite(item.star) && Number.isFinite(item.percentage))
-    .sort((a, b) => a.star - b.star)
-    .map((item) => ({
-      star: item.star,
-      percentage: Math.min(100, Math.max(0, Math.round(item.percentage))),
-    }));
+  const byStar = new Map<number, number>();
+
+  for (const item of source) {
+    const star = Math.round(item.star);
+    if (star < 1 || star > 5 || !Number.isFinite(item.percentage)) continue;
+    byStar.set(star, Math.max(0, item.percentage));
+  }
+
+  const rawTotal = Array.from(byStar.values()).reduce((sum, value) => sum + value, 0);
+  const mixed = [1, 2, 3, 4, 5].map((star) => {
+    const prior = PRIOR_DISTRIBUTION.get(star) || 20;
+    const normalizedInput = rawTotal > 0 ? ((byStar.get(star) || 0) / rawTotal) * 100 : prior;
+    const percentage = rawTotal > 0 ? normalizedInput * 0.72 + prior * 0.28 : prior;
+    return {
+      star,
+      percentage: Math.max(MIN_VISIBLE_PERCENTAGE, Math.round(percentage)),
+    };
+  });
+
+  rebalanceToHundred(mixed);
+  return mixed;
+}
+
+function rebalanceToHundred(distribution: { star: number; percentage: number }[]): void {
+  let diff = 100 - distribution.reduce((sum, item) => sum + item.percentage, 0);
+
+  while (diff !== 0) {
+    const candidates =
+      diff > 0
+        ? [...distribution].sort((a, b) => b.percentage - a.percentage)
+        : [...distribution]
+            .sort((a, b) => b.percentage - a.percentage)
+            .filter((item) => item.percentage > MIN_VISIBLE_PERCENTAGE);
+    const target = candidates[0];
+    if (!target) break;
+
+    target.percentage += diff > 0 ? 1 : -1;
+    diff += diff > 0 ? -1 : 1;
+  }
 }
 
 const ReviewChart = ({ data }: ReviewChartProps) => {
